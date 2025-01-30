@@ -9,7 +9,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text>Welcome group 26! Workspace is complete. Change has been made.</Text>
+      <Text>Welcome group 26! Workspace hi is complete. Change has been made. another</Text>
     </View>
   );
 }
