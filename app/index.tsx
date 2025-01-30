@@ -13,4 +13,4 @@ export default function Index() {
     </View>
   );
 }
-// hey team
+// Home Page
