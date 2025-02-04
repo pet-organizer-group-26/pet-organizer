@@ -9,7 +9,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text>Welcome group 26! This will be our home page!</Text>
+      <Text>Welcome group 26! This will be our home page! Video test</Text>
     </View>
   );
 }
