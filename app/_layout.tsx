@@ -1,14 +1,20 @@
-// app/_layout.js
 import { Drawer } from 'expo-router/drawer';
 import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet } from 'react-native';
 
 export default function Layout() {
   return (
     <Drawer
       screenOptions={{
-        headerStyle: { backgroundColor: '#6200EE' },
-        headerTintColor: '#fff',
-        drawerActiveTintColor: '#6200EE',
+        headerStyle: { backgroundColor: '#ffffff', shadowColor: 'transparent' },
+        headerTintColor: '#00796b',
+        headerTitle: () => (
+          <View style={styles.headerContainer}>
+            <Ionicons name="paw" size={24} color="#00796b" style={styles.headerIcon} />
+            <Text style={styles.headerText}>FeedMi</Text>
+          </View>
+        ),
+        drawerActiveTintColor: '#00796b',
         drawerLabelStyle: { fontSize: 16 },
       }}
     >
@@ -36,3 +42,19 @@ export default function Layout() {
     </Drawer>
   );
 }
+
+const styles = StyleSheet.create({
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    marginRight: 8,
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#00796b',
+    letterSpacing: 1.2,
+  },
+});
