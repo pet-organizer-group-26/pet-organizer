@@ -1,150 +1,99 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Calendar } from 'react-native-calendars';
+import { firestore } from '../constants/firebaseConfig';
+import { collection, onSnapshot } from 'firebase/firestore';
 
-type EventCategory = 'Vet' | 'Grooming' | 'Daily' | 'Training' | 'Play';
-
-const categoryColors: { [key in EventCategory]: string } = {
-  Vet: '#D32F2F', // Red
-  Grooming: '#7B1FA2', // Purple
-  Daily: '#388E3C', // Green
-  Training: '#FBC02D', // Yellow
-  Play: '#1976D2', // Blue
+const categoryColors: { [key: string]: string } = {
+  Vet: '#D32F2F',
+  Grooming: '#7B1FA2',
+  Daily: '#388E3C',
+  Training: '#FBC02D',
+  Play: '#1976D2',
 };
 
-const events: { id: string; title: string; date: string; time: string; category: EventCategory }[] = [
-  { id: '1', title: 'Vet Appointment', date: '2025-02-10', time: '10:00 AM', category: 'Vet' },
-  { id: '2', title: 'Grooming Session', date: '2025-02-12', time: '2:00 PM', category: 'Grooming' },
-  { id: '3', title: 'Daily Feeding', date: '2025-02-15', time: '8:00 AM', category: 'Daily' },
-  { id: '4', title: 'Training Class', date: '2025-02-18', time: '11:00 AM', category: 'Training' },
-  { id: '5', title: 'Playdate at Park', date: '2025-02-20', time: '4:00 PM', category: 'Play' },
-  { id: '6', title: 'Extra Training', date: '2025-02-20', time: '6:00 PM', category: 'Training' },
-];
-
-type Day = {
-  dateString: string;
-  day: number;
-  month: number;
-  year: number;
-  timestamp: number;
+type Event = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  category: string;
+  location?: string;
 };
 
 export default function HomePage() {
-  const [selectedDate, setSelectedDate] = useState('');
+  const [events, setEvents] = useState<Event[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const router = useRouter();
 
-  const filteredEvents = events.filter(event => event.date === selectedDate);
-
-  const markedDates = events.reduce((acc, event) => {
-    if (event.category !== 'Daily') {
-      acc[event.date] = { marked: true, dotColor: '#00796b' };
-    }
-    return acc;
-  }, {} as Record<string, { marked: boolean; dotColor: string }>);
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(firestore, 'events'), (snapshot) => {
+      const eventData: Event[] = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Event));
+      setEvents(eventData);
+    });
+    return unsubscribe;
+  }, []);
 
   return (
     <View style={styles.container}>
       <Calendar
         style={styles.calendar}
-        onDayPress={(day: Day) => setSelectedDate(day.dateString)}
-        markedDates={{
-          ...markedDates,
-          [selectedDate]: { selected: true, selectedColor: '#4a4a4a' },
+        onDayPress={(day: { dateString: string }) => {
+          setSelectedDate(day.dateString);
         }}
-        theme={{
-          backgroundColor: '#f4f6f8',
-          calendarBackground: '#ffffff',
-          textSectionTitleColor: '#4a4a4a',
-          todayTextColor: '#00796b',
-          dayTextColor: '#333333',
-          arrowColor: '#00796b',
-          monthTextColor: '#00796b',
-          selectedDayBackgroundColor: '#4a4a4a',
-          selectedDayTextColor: '#ffffff',
+        markedDates={{
+          ...events.reduce((acc, event) => {
+            acc[event.date] = { marked: true, dotColor: '#00796b' };
+            return acc;
+          }, {} as Record<string, { marked: boolean; dotColor: string }>),
+          [selectedDate]: { selected: true, selectedColor: '#d3d3d3', selectedTextColor: '#000' },
         }}
       />
 
-      <Text style={styles.subtitle}>{selectedDate ? `Events for ${selectedDate}` : 'Select a date to view events'}</Text>
+      {selectedDate && (
+        <Text style={styles.subtitle}>
+          {events.some(event => event.date === selectedDate) 
+            ? `Events for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}` 
+            : 'No events scheduled'}
+        </Text>
+      )}
 
       <FlatList
-        data={filteredEvents}
-        keyExtractor={item => item.id}
+        data={events.filter(event => event.date === selectedDate)}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <View style={[styles.categoryTag, { borderColor: categoryColors[item.category] }]}> 
-                <Text style={[styles.categoryText, { color: categoryColors[item.category] }]}>
-                  {item.category}
-                </Text>
+          <TouchableOpacity onPress={() => router.push({ pathname: '/EventDetails', params: item })}>
+            <View style={styles.card}>
+              <View style={styles.eventHeader}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <View style={[styles.categoryTag, { backgroundColor: categoryColors[item.category] || '#ccc' }]}>
+                  <Text style={styles.categoryText}>{item.category}</Text>
+                </View>
               </View>
+              <Text style={styles.cardText}>{item.time} {item.location ? `• ${item.location}` : ''}</Text>
             </View>
-            <Text style={styles.cardText}>{item.time}</Text>
-          </View>
+          </TouchableOpacity>
         )}
-        contentContainerStyle={styles.list}
       />
+
+      <TouchableOpacity style={styles.addButton} onPress={() => router.push('/AddEvent')}>
+        <Text style={styles.addButtonText}>+ Add Event</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f4f6f8',
-    padding: 16,
-  },
-  calendar: {
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    marginBottom: 20,
-  },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#555',
-    textAlign: 'center',
-    marginBottom: 10,
-    paddingVertical: 8,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  list: {
-    paddingBottom: 80,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 14,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  categoryTag: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#004d40',
-  },
-  cardText: {
-    color: '#6b7280',
-    marginTop: 6,
-    fontSize: 14,
-  },
+  container: { flex: 1, padding: 16 },
+  calendar: { marginBottom: 20 },
+  subtitle: { fontSize: 18, fontWeight: '600', textAlign: 'center', marginVertical: 10 },
+  card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  cardTitle: { fontSize: 16, fontWeight: 'bold' },
+  cardText: { fontSize: 14, color: '#555' },
+  addButton: { backgroundColor: '#00796b', padding: 12, borderRadius: 25, alignItems: 'center', marginTop: 10 },
+  addButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  eventHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  categoryTag: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, alignSelf: 'flex-start' },
+  categoryText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
 });
