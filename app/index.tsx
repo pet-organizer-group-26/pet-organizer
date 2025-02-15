@@ -6,11 +6,11 @@ import { firestore } from '../constants/firebaseConfig';
 import { collection, onSnapshot } from 'firebase/firestore';
 
 const categoryColors: { [key: string]: string } = {
-  Vet: '#D32F2F',
-  Grooming: '#7B1FA2',
-  Daily: '#388E3C',
-  Training: '#FBC02D',
-  Play: '#1976D2',
+  Vet: '#FF8FAB',
+  Grooming: '#C3A6FF',
+  Daily: '#FFCF81',
+  Training: '#e1e650',
+  Play: '#89CFF0',
 };
 
 type Event = {
@@ -35,6 +35,8 @@ export default function HomePage() {
     return unsubscribe;
   }, []);
 
+  const today = new Date().toISOString().split('T')[0];
+
   return (
     <View style={styles.container}>
       <Calendar
@@ -52,11 +54,11 @@ export default function HomePage() {
       />
 
       {selectedDate && (
-        <Text style={styles.subtitle}>
-          {events.some(event => event.date === selectedDate) 
-            ? `Events for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}` 
-            : 'No events scheduled'}
-        </Text>
+        <View style={styles.eventHeader}>
+          <Text style={styles.subtitle}>
+            {selectedDate === today ? 'Events for Today' : `Events for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`}
+          </Text>
+        </View>
       )}
 
       <FlatList
@@ -65,7 +67,7 @@ export default function HomePage() {
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => router.push({ pathname: '/EventDetails', params: item })}>
             <View style={styles.card}>
-              <View style={styles.eventHeader}>
+              <View style={styles.eventHeaderRow}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
                 <View style={[styles.categoryTag, { backgroundColor: categoryColors[item.category] || '#ccc' }]}>
                   <Text style={styles.categoryText}>{item.category}</Text>
@@ -86,14 +88,15 @@ export default function HomePage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  calendar: { marginBottom: 20 },
-  subtitle: { fontSize: 18, fontWeight: '600', textAlign: 'center', marginVertical: 10 },
+  calendar: { marginBottom: 20, borderRadius: 12, overflow: 'hidden', elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
+  eventHeader: { backgroundColor: '#f4f4f4', padding: 12, borderRadius: 10, alignItems: 'center', marginVertical: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
+  subtitle: { fontSize: 18, fontWeight: '600', textAlign: 'center' },
   card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   cardTitle: { fontSize: 16, fontWeight: 'bold' },
   cardText: { fontSize: 14, color: '#555' },
-  addButton: { backgroundColor: '#00796b', padding: 12, borderRadius: 25, alignItems: 'center', marginTop: 10 },
+  addButton: { backgroundColor: '#00796b', padding: 12, borderRadius: 25, alignItems: 'center', marginTop: 10, elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4 },
   addButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  eventHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  eventHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   categoryTag: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, alignSelf: 'flex-start' },
   categoryText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
 });
