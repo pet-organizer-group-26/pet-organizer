@@ -18,25 +18,43 @@ export default function Layout() {
         drawerLabelStyle: { fontSize: 16 },
       }}
     >
+      {/* Visible Screens */}
       <Drawer.Screen
         name="index"
         options={{
           title: 'Home',
-          drawerIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />,
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
         }}
       />
       <Drawer.Screen
         name="calendar"
         options={{
           title: 'Calendar',
-          drawerIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
         }}
       />
       <Drawer.Screen
         name="pets"
         options={{
           title: 'Pets',
-          drawerIcon: ({ color, size }) => <Ionicons name="paw-outline" size={size} color={color} />,
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="paw-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* Hidden Screen (Style Hack) */}
+      <Drawer.Screen
+        name="AddEvent"
+        options={{
+          drawerItemStyle: { height: 0 },
+          drawerLabel: () => null,
+          // Optionally hide icon as well:
+          drawerIcon: () => null,
         }}
       />
     </Drawer>

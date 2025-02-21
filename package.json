@@ -20,16 +20,19 @@
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-community/datetimepicker": "^8.3.0",
     "@react-native-firebase/app": "^21.7.1",
+    "@react-native-picker/picker": "^2.11.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/drawer": "^7.1.1",
     "@react-navigation/native": "^7.0.14",
     "expo": "~52.0.28",
     "expo-blur": "~14.0.3",
     "expo-constants": "~17.0.5",
+    "expo-device": "^7.0.2",
     "expo-font": "~13.0.3",
     "expo-haptics": "~14.0.1",
     "expo-linear-gradient": "^14.0.2",
     "expo-linking": "~7.0.5",
+    "expo-notifications": "^0.29.13",
     "expo-router": "~4.0.17",
     "expo-splash-screen": "~0.29.21",
     "expo-status-bar": "~2.0.1",
@@ -58,6 +61,24 @@
     "jest-expo": "~52.0.3",
     "react-test-renderer": "18.3.1",
     "typescript": "^5.3.3"
+  },
+  "expo": {
+    "android": {
+      "package": "com.group26.FeedMI",
+      "permissions": [
+        "VIBRATE",
+        "WAKE_LOCK",
+        "FOREGROUND_SERVICE"
+      ],
+      "useNextNotificationsApi": true
+    },
+    "ios": {
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
+    }
   },
   "private": true
 }

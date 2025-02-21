@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "294897435828",
+    "project_id": "pet-organizer-app",
+    "storage_bucket": "pet-organizer-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:294897435828:android:ea5561d8e845d1639483e1",
+        "android_client_info": {
+          "package_name": "com.group26.FeedMI"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBQw9MpCkxh74idPRFV37e7sQuxuAQS84"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
