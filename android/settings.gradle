@@ -22,9 +22,9 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 
 rootProject.name = 'petorganizer'
-apply from: new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim(), "../gradle/settings.gradle")
-apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); 
-applyNativeModulesSettingsGradle(settings)
+// Commented out native modules settings, as they are not used in Expo projects
+// apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); 
+// applyNativeModulesSettingsGradle(settings)
 include ':app'
 
 dependencyResolutionManagement {
