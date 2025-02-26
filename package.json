@@ -18,7 +18,7 @@
     "@expo/vector-icons": "^14.0.2",
     "@gorhom/bottom-sheet": "^5.1.1",
     "@react-native-async-storage/async-storage": "^1.24.0",
-    "@react-native-community/datetimepicker": "^8.3.0",
+    "@react-native-community/datetimepicker": "^7.0.0",
     "@react-native-firebase/app": "^21.7.1",
     "@react-native-picker/picker": "^2.11.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native-community/cli": "latest",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
     "@types/react-test-renderer": "^18.3.0",
