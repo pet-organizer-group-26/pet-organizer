@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { signIn } from '../hooks/useAuth';
 
 // Make sure to register for redirect URI
 WebBrowser.maybeCompleteAuthSession();
@@ -25,6 +26,9 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   // Animation values
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -63,24 +67,57 @@ export default function LoginScreen() {
     }
   }, [fadeAnim, slideAnim, response]);
 
-  const handleLogin = () => {
-    // Button press animation
-    Animated.sequence([
-      Animated.timing(buttonScale, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(buttonScale, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
 
-    // Perform your login logic here (e.g. Firebase auth).
-    // On successful login, navigate to your index.tsx or home screen.
-    router.push('/');
+  const handleLogin = async () => {
+    // Reset errors
+    setEmailError('');
+    setPasswordError('');
+
+    // Validate inputs
+    let hasError = false;
+    
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      hasError = true;
+    } else if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email');
+      hasError = true;
+    }
+
+    if (!password) {
+      setPasswordError('Password is required');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
+    setIsLoading(true);
+
+    try {
+      await signIn(email, password);
+      // If successful, navigate to home
+      router.push('/');
+    } catch (error: any) {
+      // Handle Firebase auth errors
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+          setPasswordError('Invalid email or password');
+          break;
+        case 'auth/too-many-requests':
+          setPasswordError('Too many failed attempts. Please try again later');
+          break;
+        default:
+          setPasswordError('An error occurred. Please try again');
+      }
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleGoogleLogin = async () => {
@@ -121,25 +158,32 @@ export default function LoginScreen() {
           <View style={styles.inputWrapper}>
             <Ionicons name="mail-outline" size={22} color="#00796b" style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, emailError && styles.inputError]}
               placeholder="Email"
               placeholderTextColor="#aaa"
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                setEmailError('');
+              }}
             />
           </View>
+          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
           <View style={styles.inputWrapper}>
             <Ionicons name="lock-closed-outline" size={22} color="#00796b" style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, passwordError && styles.inputError]}
               placeholder="Password"
               placeholderTextColor="#aaa"
               secureTextEntry={!isPasswordVisible}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                setPasswordError('');
+              }}
             />
             <TouchableOpacity
               onPress={() => setIsPasswordVisible(!isPasswordVisible)}
@@ -152,6 +196,7 @@ export default function LoginScreen() {
               />
             </TouchableOpacity>
           </View>
+          {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
           <TouchableOpacity style={styles.forgotPassword}>
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
@@ -192,7 +237,7 @@ export default function LoginScreen() {
 
         <View style={styles.signupContainer}>
           <Text style={styles.signupText}>Don't have an account? </Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/signup')}>
             <Text style={styles.signupLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>
@@ -268,6 +313,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     fontSize: 16,
     color: '#333',
+  },
+  inputError: {
+    borderColor: '#ff6b6b',
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: 12,
+    marginTop: -12,
+    marginBottom: 12,
+    marginLeft: 12,
   },
   visibilityIcon: {
     paddingHorizontal: 12,
