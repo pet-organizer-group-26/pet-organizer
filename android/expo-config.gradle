@@ -1,0 +1,4 @@
+// Expo configuration
+def expoScriptPath = new File(["node", "--print", "require.resolve('expo/package.json')"].execute(null, rootDir).text.trim(), "../scripts/autolinking.gradle")
+apply from: expoScriptPath
+useExpoModules() 
