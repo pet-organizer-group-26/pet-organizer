@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { signIn } from '../hooks/useAuth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Make sure to register for redirect URI
 WebBrowser.maybeCompleteAuthSession();
@@ -122,6 +123,15 @@ export default function LoginScreen() {
   
   const handleGoogleLogin = async () => {
     promptAsync();
+  };
+
+  const handleGuestAccess = async () => {
+    try {
+      await AsyncStorage.setItem('isGuest', 'true');
+      router.replace('/');
+    } catch (error) {
+      console.error('Error setting guest mode:', error);
+    }
   };
 
   return (
@@ -232,6 +242,15 @@ export default function LoginScreen() {
           >
             <Ionicons name="logo-google" size={22} color="#EA4335" style={styles.googleIcon} />
             <Text style={styles.googleButtonText}>Sign in with Google</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.googleButton, styles.guestButton]} 
+            onPress={handleGuestAccess}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="person-outline" size={22} color="#666" style={styles.googleIcon} />
+            <Text style={styles.googleButtonText}>Continue as Guest</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -401,5 +420,10 @@ const styles = StyleSheet.create({
     color: '#00796b',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  guestButton: {
+    marginTop: 10,
+    backgroundColor: '#f5f5f5',
+    borderColor: '#ddd',
   },
 });
