@@ -9,13 +9,15 @@ import {
   Keyboard,
   ScrollView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Notifications from 'expo-notifications';
-import { firestore } from '../constants/firebaseConfig';
-import { collection, addDoc } from 'firebase/firestore';
+import { supabase } from '../lib/supabase';
+import { Ionicons } from '@expo/vector-icons';
+import CustomDatePicker from './components/CustomDatePicker';
 
 // Category color options
 const categoryOptions = [
@@ -29,13 +31,13 @@ const categoryOptions = [
 // Updated repeat options now include "Forever"
 const repeatOptions = ['Never', 'Daily', 'Weekly', 'Forever'];
 
-// Notification options now include an option for sending notification at the event time
+// Updated notification options for local notifications
 const notificationOptionsList = [
   'None',
   'At Event Time',
+  '15 Minutes Before',
+  '30 Minutes Before',
   '1 Hour Before',
-  '2 Hours Before',
-  '1 Day Before',
 ];
 
 export default function AddEvent() {
@@ -127,57 +129,101 @@ export default function AddEvent() {
     return eventsData;
   };
 
+  // Set up notification handler
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+
+  const scheduleLocalNotification = async (evt: any, offsetMinutes: number) => {
+    try {
+      // Parse event date and time
+      const [year, month, day] = evt.date.split('-').map(Number);
+      const [hour, minute] = evt.time.split(':').map(Number);
+      const eventDateTime = new Date(year, month - 1, day, hour, minute, 0);
+
+      // Calculate trigger time
+      const triggerTime = new Date(eventDateTime.getTime() - offsetMinutes * 60 * 1000);
+      const secondsUntilTrigger = Math.floor((triggerTime.getTime() - Date.now()) / 1000);
+
+      // Only schedule if the trigger time is in the future
+      if (secondsUntilTrigger > 0) {
+        const identifier = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: evt.category === 'Vet' ? '🏥 Vet Appointment' : 
+                   evt.category === 'Grooming' ? '✨ Grooming Time' :
+                   evt.category === 'Daily' ? '📅 Daily Task' :
+                   evt.category === 'Training' ? '🎯 Training Session' :
+                   evt.category === 'Play' ? '🎾 Play Time' : '🐾 Pet Event',
+            body: `${evt.title}${evt.location ? ` at ${evt.location}` : ''}`,
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          },
+          trigger: {
+            seconds: secondsUntilTrigger,
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          },
+        });
+        console.log(`Scheduled notification ${identifier} for ${triggerTime}`);
+        return identifier;
+      }
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+    }
+    return null;
+  };
+
   const handleSave = async () => {
-    if (!title || !location) return;
+    if (!title || !location) {
+      Alert.alert('Error', 'Please enter an event title and location');
+      return;
+    }
 
     try {
       const newEvents = generateRepeats(date, time);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      // Save events to Supabase
       const savePromises = newEvents.map((evt) =>
-        addDoc(collection(firestore, 'events'), evt)
+        supabase
+          .from('events')
+          .insert([{ ...evt, user_id: user.id }])
+          .select()
       );
-      await Promise.all(savePromises);
+
+      const savedEvents = await Promise.all(savePromises);
 
       // Schedule notifications if an option is chosen
       if (notificationOption !== 'None') {
-        newEvents.forEach((evt) => {
-          // Parse evt.date and evt.time as local values:
-          const [year, month, day] = evt.date.split('-').map(Number);
-          const [hour, minute] = evt.time.split(':').map(Number);
-          const eventDateTime = new Date(year, month - 1, day, hour, minute, 0);
-
-          let offsetMinutes = 0;
-          if (notificationOption === 'At Event Time') {
+        let offsetMinutes = 0;
+        switch (notificationOption) {
+          case 'At Event Time':
             offsetMinutes = 0;
-          } else if (notificationOption === '1 Hour Before') {
+            break;
+          case '15 Minutes Before':
+            offsetMinutes = 15;
+            break;
+          case '30 Minutes Before':
+            offsetMinutes = 30;
+            break;
+          case '1 Hour Before':
             offsetMinutes = 60;
-          } else if (notificationOption === '2 Hours Before') {
-            offsetMinutes = 120;
-          } else if (notificationOption === '1 Day Before') {
-            offsetMinutes = 1440;
-          }
-          const triggerDate = new Date(
-            eventDateTime.getTime() - offsetMinutes * 60 * 1000
-          );
+            break;
+        }
 
-          if (triggerDate > new Date()) {
-            const secondsUntilTrigger = Math.floor(
-              (triggerDate.getTime() - Date.now()) / 1000
-            );
-            // Only schedule if there are at least 30 seconds until trigger
-            if (secondsUntilTrigger > 30) {
-              Notifications.scheduleNotificationAsync({
-                content: {
-                  title: 'Upcoming Event Reminder',
-                  body: `Your event "${evt.title}" is coming up.`,
-                },
-                trigger: ({
-                  seconds: secondsUntilTrigger,
-                  repeats: false,
-                } as unknown) as Notifications.NotificationTriggerInput,
-              });
-            }
-          }
-        });
+        // Schedule notifications for each event
+        const notificationPromises = newEvents.map(evt => 
+          scheduleLocalNotification(evt, offsetMinutes)
+        );
+        await Promise.all(notificationPromises);
       }
 
       resetForm();
@@ -196,9 +242,15 @@ export default function AddEvent() {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>
             🐾 Bark It on the Calendar
           </Text>
+          <TouchableOpacity onPress={handleSave}>
+            <Text style={styles.saveButton}>Save</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
@@ -217,57 +269,19 @@ export default function AddEvent() {
             onChangeText={setLocation}
           />
 
-          <TouchableOpacity
-            style={styles.inputButton}
-            onPress={() => {
-              setShowDatePicker(true);
-              setShowTimePicker(false);
-            }}
-          >
-            <Text style={styles.inputButtonText}>
-              {date.toDateString()}
-            </Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(event, selectedDate) => {
-                if (selectedDate) setDate(selectedDate);
-                if (Platform.OS !== 'ios') setShowDatePicker(false);
-              }}
-              style={styles.dateTimePicker}
-            />
-          )}
+          <CustomDatePicker
+            label="Date"
+            value={date}
+            onChange={(date) => setDate(date)}
+            mode="date"
+          />
 
-          <TouchableOpacity
-            style={styles.inputButton}
-            onPress={() => {
-              setShowTimePicker(true);
-              setShowDatePicker(false);
-            }}
-          >
-            <Text style={styles.inputButtonText}>
-              {time.toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </TouchableOpacity>
-          {showTimePicker && (
-            <DateTimePicker
-              value={time}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              is24Hour={false}
-              onChange={(event, selectedTime) => {
-                if (selectedTime) setTime(selectedTime);
-                if (Platform.OS !== 'ios') setShowTimePicker(false);
-              }}
-              style={styles.dateTimePicker}
-            />
-          )}
+          <CustomDatePicker
+            label="Time"
+            value={time}
+            onChange={(time) => setTime(time)}
+            mode="time"
+          />
 
           <Text style={styles.label}>Category</Text>
           <View style={styles.categoryContainer}>
@@ -356,21 +370,6 @@ export default function AddEvent() {
               </TouchableOpacity>
             ))}
           </View>
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleCancel}
-            >
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={handleSave}
-            >
-              <Text style={styles.buttonText}>Save Event</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
     </TouchableWithoutFeedback>
@@ -380,15 +379,12 @@ export default function AddEvent() {
 const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: 16, backgroundColor: '#f4f4f4' },
   header: {
-    backgroundColor: '#f4f4f4',
-    padding: 12,
-    borderRadius: 10,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    justifyContent: 'space-between',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   headerTitle: {
     fontSize: 24,
@@ -413,18 +409,6 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     fontSize: 16,
     color: '#333',
-  },
-  inputButton: {
-    backgroundColor: '#f9f9f9',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 15,
-    alignItems: 'center',
-  },
-  inputButtonText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '600',
   },
   dateTimePicker: {
     backgroundColor: '#fff',
@@ -492,38 +476,9 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '600',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#bbb',
-    padding: 12,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginRight: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
   saveButton: {
-    flex: 1,
-    backgroundColor: '#00796b',
-    padding: 12,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginLeft: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  buttonText: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    color: '#00796b',
+    fontWeight: '600',
   },
 });

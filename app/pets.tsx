@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TextInput, ScrollView, TouchableOpacity, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
 const COLORS = {
   primary: '#00796b',
@@ -128,8 +129,8 @@ export default function PetsScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
-      <TouchableOpacity 
-        style={styles.addButton} 
+      <TouchableOpacity
+        style={styles.addButton}
         onPress={() => {
           setPetName('');
           setPetType('Dog');
@@ -138,7 +139,7 @@ export default function PetsScreen() {
           setModalVisible(true);
         }}
       >
-        <Text style={styles.addButtonText}>+ Add New Pet</Text>
+        <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
       
       <Modal visible={modalVisible} animationType="slide">
@@ -335,16 +336,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold'
   },
   addButton: {
-    backgroundColor: COLORS.primary,
-    padding: 15,
-    borderRadius: 25,
     position: 'absolute',
-    bottom: 30,
-    left: 20,
-    right: 20,
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  addButtonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
   modalButton: {
     backgroundColor: COLORS.primary,
     padding: 15,

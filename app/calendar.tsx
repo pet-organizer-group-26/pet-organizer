@@ -15,16 +15,11 @@ import { useRouter } from 'expo-router';
 import { Calendar, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { firestore } from '../constants/firebaseConfig';
-import {
-  collection,
-  onSnapshot,
-  doc,
-  deleteDoc,
-  updateDoc,
-} from 'firebase/firestore';
-
+import { supabase } from '../lib/supabase';
 import * as Notifications from 'expo-notifications';
+import { format } from 'date-fns';
+import ModalSystem from './components/ModalSystem';
+import CustomDatePicker from './components/CustomDatePicker';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -105,13 +100,61 @@ export default function CalendarPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(firestore, 'events'), (snapshot) => {
-      const eventData: Event[] = snapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Event)
-      );
-      setEvents(eventData);
-    });
-    return unsubscribe;
+    const fetchEvents = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Subscribe to changes
+        const subscription = supabase
+          .channel('events_channel')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'events',
+              filter: `user_id=eq.${user.id}`,
+            },
+            async (payload) => {
+              // Fetch all events again when there's a change
+              const { data: events, error } = await supabase
+                .from('events')
+                .select('*')
+                .eq('user_id', user.id);
+              
+              if (error) {
+                console.error('Error fetching events:', error);
+                return;
+              }
+
+              setEvents(events);
+            }
+          )
+          .subscribe();
+
+        // Initial fetch
+        const { data: events, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (error) {
+          console.error('Error fetching events:', error);
+          return;
+        }
+
+        setEvents(events);
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('Error setting up events subscription:', error);
+      }
+    };
+
+    fetchEvents();
   }, []);
 
   const today = new Date().toLocaleDateString('en-CA');
@@ -125,7 +168,13 @@ export default function CalendarPage() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteDoc(doc(firestore, 'events', eventId));
+            const { error } = await supabase
+              .from('events')
+              .delete()
+              .eq('id', eventId);
+
+            if (error) throw error;
+
             setSelectedEvent(null);
             setIsEditing(false);
             setEditedEvent(null);
@@ -141,14 +190,19 @@ export default function CalendarPage() {
   const handleSaveEdit = async () => {
     if (!editedEvent) return;
     try {
-      const eventRef = doc(firestore, 'events', editedEvent.id);
-      await updateDoc(eventRef, {
-        title: editedEvent.title,
-        date: editedEvent.date,
-        time: editedEvent.time,
-        category: editedEvent.category,
-        location: editedEvent.location || '',
-      });
+      const { error } = await supabase
+        .from('events')
+        .update({
+          title: editedEvent.title,
+          date: editedEvent.date,
+          time: editedEvent.time,
+          category: editedEvent.category,
+          location: editedEvent.location || '',
+        })
+        .eq('id', editedEvent.id);
+
+      if (error) throw error;
+
       setSelectedEvent(editedEvent);
       setIsEditing(false);
       setEditedEvent(null);
@@ -168,6 +222,99 @@ export default function CalendarPage() {
     }
     return event.date === selectedDate;
   }).sort((a, b) => a.time.localeCompare(b.time));
+
+  const renderEventDetails = () => (
+    <View>
+      <View style={styles.modalInfoRow}>
+        <Ionicons name="calendar-outline" size={24} color="#555" style={styles.icon} />
+        <Text style={styles.modalInfoText}>
+          {selectedEvent && formatDateString(selectedEvent.date)}
+        </Text>
+      </View>
+      <View style={styles.modalInfoRow}>
+        <Ionicons name="time-outline" size={24} color="#555" style={styles.icon} />
+        <Text style={styles.modalInfoText}>
+          {selectedEvent && formatTime12(selectedEvent.time)}
+        </Text>
+      </View>
+      {selectedEvent && ['Vet', 'Grooming', 'Training'].includes(selectedEvent.category) &&
+        selectedEvent.location && (
+          <View style={styles.modalInfoRow}>
+            <Ionicons name="location-outline" size={24} color="#555" style={styles.icon} />
+            <Text style={styles.modalInfoText}>{selectedEvent.location}</Text>
+          </View>
+        )}
+      {selectedEvent && selectedEvent.repeat && selectedEvent.repeat !== 'Never' && (
+        <View style={styles.repeatContainer}>
+          <Ionicons name="repeat" size={14} color="#00796b" style={{ marginRight: 4 }} />
+          <Text style={styles.repeatLabel}>{selectedEvent.repeat}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEditForm = () => (
+    <View>
+      <TextInput
+        style={styles.formField}
+        placeholder="Event Title"
+        value={editedEvent?.title || ''}
+        onChangeText={(text) => setEditedEvent(prev => ({ ...prev!, title: text }))}
+      />
+      
+      <CustomDatePicker
+        label="Date"
+        value={editedEvent?.date ? new Date(editedEvent.date) : new Date()}
+        onChange={(date) => setEditedEvent(prev => ({ ...prev!, date: date.toISOString() }))}
+        mode="date"
+      />
+
+      <CustomDatePicker
+        label="Time"
+        value={editedEvent?.time ? new Date(`2000-01-01T${editedEvent.time}`) : new Date()}
+        onChange={(date) => setEditedEvent(prev => ({ 
+          ...prev!, 
+          time: format(date, 'HH:mm') 
+        }))}
+        mode="time"
+      />
+
+      <TouchableOpacity
+        style={styles.formField}
+        onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+      >
+        <Text style={styles.fieldValue}>
+          {editedEvent?.category || 'Select Category'}
+        </Text>
+      </TouchableOpacity>
+
+      {showCategoryDropdown && (
+        <View style={styles.dropdown}>
+          {Object.keys(categoryColors).map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={styles.dropdownItem}
+              onPress={() => {
+                setEditedEvent(prev => ({ ...prev!, category }));
+                setShowCategoryDropdown(false);
+              }}
+            >
+              <Text style={styles.dropdownItemText}>{category}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {['Vet', 'Grooming', 'Training'].includes(editedEvent?.category || '') && (
+        <TextInput
+          style={styles.formField}
+          placeholder="Location"
+          value={editedEvent?.location || ''}
+          onChangeText={(text) => setEditedEvent(prev => ({ ...prev!, location: text }))}
+        />
+      )}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -248,201 +395,55 @@ export default function CalendarPage() {
           })
         }
       >
-        <Text style={styles.addButtonText}>+ Add Event</Text>
+        <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
 
-      <Modal
-        visible={!!selectedEvent}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setSelectedEvent(null);
-          setIsEditing(false);
-          setEditedEvent(null);
-          setShowCategoryDropdown(false);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            {selectedEvent && !isEditing && (
-              <>
-                <Text style={styles.modalTitle}>{selectedEvent.title}</Text>
-                <View style={styles.modalInfoRow}>
-                  <Ionicons name="calendar-outline" size={24} color="#555" style={styles.icon} />
-                  <Text style={styles.modalInfoText}>
-                    {formatDateString(selectedEvent.date)}
-                  </Text>
-                </View>
-                <View style={styles.modalInfoRow}>
-                  <Ionicons name="time-outline" size={24} color="#555" style={styles.icon} />
-                  <Text style={styles.modalInfoText}>
-                    {formatTime12(selectedEvent.time)}
-                  </Text>
-                </View>
-                {['Vet', 'Grooming', 'Training'].includes(selectedEvent.category) &&
-                  selectedEvent.location && (
-                    <View style={styles.modalInfoRow}>
-                      <Ionicons name="location-outline" size={24} color="#555" style={styles.icon} />
-                      <Text style={styles.modalInfoText}>{selectedEvent.location}</Text>
-                    </View>
-                  )}
-                {selectedEvent.repeat && selectedEvent.repeat !== 'Never' && (
-                  <View style={styles.repeatContainer}>
-                    <Ionicons name="repeat" size={14} color="#00796b" style={{ marginRight: 4 }} />
-                    <Text style={styles.repeatLabel}>{selectedEvent.repeat}</Text>
-                  </View>
-                )}
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={styles.editButton}
-                    onPress={() => {
-                      setIsEditing(true);
-                      setEditedEvent(selectedEvent);
-                    }}
-                  >
-                    <Text style={styles.buttonText}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDelete(selectedEvent.id)}
-                  >
-                    <Text style={styles.buttonText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => {
-                    setSelectedEvent(null);
-                    setIsEditing(false);
-                    setEditedEvent(null);
-                    setShowCategoryDropdown(false);
-                  }}
-                >
-                  <Text style={styles.closeButtonText}>Close</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {selectedEvent && isEditing && editedEvent && (
-              <>
-                <Text style={styles.editSubtitle}>Edit Event</Text>
-                <TextInput
-                  style={styles.formField}
-                  value={editedEvent.title}
-                  onChangeText={(text) =>
-                    setEditedEvent({ ...editedEvent, title: text })
-                  }
-                  placeholder="Title"
-                  placeholderTextColor="#999"
-                />
-                <TouchableOpacity
-                  style={[styles.formField, { justifyContent: 'center' }]}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Text style={styles.fieldValue}>
-                    {editedEvent.date ? formatDateString(editedEvent.date) : 'Select Date'}
-                  </Text>
-                </TouchableOpacity>
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={
-                      editedEvent.date
-                        ? new Date(`${editedEvent.date}T00:00:00`)
-                        : new Date()
-                    }
-                    mode="date"
-                    display="default"
-                    onChange={(event, selectedD) => {
-                      setShowDatePicker(false);
-                      if (selectedD) {
-                        const isoDate = selectedD.toISOString().split('T')[0];
-                        setEditedEvent({ ...editedEvent, date: isoDate });
-                      }
-                    }}
-                  />
-                )}
-                <TouchableOpacity
-                  style={[styles.formField, { justifyContent: 'center' }]}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <Text style={styles.fieldValue}>
-                    {editedEvent.time ? formatTime12(editedEvent.time) : 'Select Time'}
-                  </Text>
-                </TouchableOpacity>
-                {showTimePicker && (
-                  <DateTimePicker
-                    value={parseTimeString(editedEvent.time)}
-                    mode="time"
-                    display="spinner"
-                    is24Hour={false}
-                    onChange={(event, selectedT) => {
-                      setShowTimePicker(false);
-                      if (selectedT) {
-                        const hh = selectedT.getHours().toString().padStart(2, '0');
-                        const mm = selectedT.getMinutes().toString().padStart(2, '0');
-                        setEditedEvent({ ...editedEvent, time: `${hh}:${mm}` });
-                      }
-                    }}
-                  />
-                )}
-                <View style={styles.dropdownWrapper}>
-                  <TouchableOpacity
-                    style={[styles.formField, { justifyContent: 'center' }]}
-                    onPress={() => setShowCategoryDropdown((prev) => !prev)}
-                  >
-                    <Text style={styles.fieldValue}>
-                      {editedEvent.category || 'Select Category'}
-                    </Text>
-                  </TouchableOpacity>
-                  {showCategoryDropdown && (
-                    <View style={styles.dropdown}>
-                      {Object.keys(categoryColors).map((cat) => (
-                        <Pressable
-                          key={cat}
-                          style={({ pressed }) => [
-                            styles.dropdownItem,
-                            pressed && { backgroundColor: '#e0e0e0' },
-                          ]}
-                          onPress={() => {
-                            setEditedEvent({ ...editedEvent, category: cat });
-                            setShowCategoryDropdown(false);
-                          }}
-                        >
-                          <Text style={styles.dropdownItemText}>{cat}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-                </View>
-                <TextInput
-                  style={styles.formField}
-                  value={editedEvent.location || ''}
-                  onChangeText={(text) =>
-                    setEditedEvent({ ...editedEvent, location: text })
-                  }
-                  placeholder="Location"
-                  placeholderTextColor="#999"
-                />
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity style={styles.editButton} onPress={handleSaveEdit}>
-                    <Text style={styles.buttonText}>Save</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => {
-                      setIsEditing(false);
-                      setEditedEvent(null);
-                      setShowCategoryDropdown(false);
-                    }}
-                  >
-                    <Text style={styles.buttonText}>Cancel</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {selectedEvent && (
+        <ModalSystem
+          visible={!!selectedEvent}
+          onClose={() => {
+            setSelectedEvent(null);
+            setIsEditing(false);
+            setEditedEvent(null);
+            setShowCategoryDropdown(false);
+          }}
+          type="form"
+          size="medium"
+          title={isEditing ? 'Edit Event' : selectedEvent.title}
+          actions={isEditing ? [
+            {
+              label: 'Cancel',
+              onPress: () => {
+                setIsEditing(false);
+                setEditedEvent(null);
+                setShowCategoryDropdown(false);
+              },
+              variant: 'secondary'
+            },
+            {
+              label: 'Save',
+              onPress: handleSaveEdit,
+              variant: 'primary'
+            }
+          ] : [
+            {
+              label: 'Edit',
+              onPress: () => {
+                setIsEditing(true);
+                setEditedEvent(selectedEvent);
+              },
+              variant: 'primary'
+            },
+            {
+              label: 'Delete',
+              onPress: () => handleDelete(selectedEvent.id),
+              variant: 'danger'
+            }
+          ]}
+        >
+          {isEditing ? renderEditForm() : renderEventDetails()}
+        </ModalSystem>
+      )}
     </View>
   );
 }
@@ -495,141 +496,78 @@ const styles = StyleSheet.create({
   },
   categoryText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
   addButton: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#00796b',
-    padding: 12,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginTop: 10,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  addButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalCard: {
-    width: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
     elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 10,
-    color: '#333',
   },
   modalInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  icon: { marginRight: 8 },
-  modalInfoText: { fontSize: 16, color: '#555' },
-  modalButtons: {
-    flexDirection: 'row',
-    marginTop: 20,
+    marginBottom: 12,
     width: '100%',
-    justifyContent: 'space-between',
   },
-  editSubtitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 15,
-    color: '#333',
+  icon: {
+    marginRight: 12,
   },
-  editButton: {
-    flex: 1,
-    backgroundColor: '#00796b',
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginRight: 10,
-    alignItems: 'center',
-  },
-  deleteButton: {
-    flex: 1,
-    backgroundColor: '#D32F2F',
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginLeft: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
+  modalInfoText: {
     fontSize: 16,
-    fontWeight: '600',
+    color: '#555',
   },
-  closeButton: {
-    marginTop: 15,
-    backgroundColor: '#bbb',
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 20,
+  repeatContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+    marginTop: 8,
   },
-  closeButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+  repeatLabel: {
     fontSize: 14,
+    color: '#00796b',
+    fontWeight: '500',
   },
   formField: {
-    width: '100%',
+    backgroundColor: '#f5f5f5',
     padding: 12,
-    marginVertical: 6,
-    borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
+    marginBottom: 12,
+    fontSize: 16,
+    width: '100%',
   },
   fieldValue: {
     fontSize: 16,
     color: '#333',
   },
-  dropdownWrapper: {
-    width: '100%',
-    position: 'relative',
-  },
   dropdown: {
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#e0e0e0',
     borderRadius: 8,
-    zIndex: 999,
-    elevation: 6,
-    paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginTop: -8,
+    marginBottom: 12,
+    maxHeight: 200,
+    overflow: 'scroll',
   },
   dropdownItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderColor: '#eee',
+    borderBottomColor: '#e0e0e0',
   },
   dropdownItemText: {
     fontSize: 16,
     color: '#333',
-  },
-  repeatContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  repeatLabel: {
-    fontSize: 12,
-    color: '#00796b',
   },
 });

@@ -7,119 +7,225 @@ import {
   TouchableOpacity,
   Alert,
   FlatList,
-  Modal,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import ModalSystem from './components/ModalSystem';
 
+type Item = {
+  id: string;
+  name: string;
+  quantity: string;
+  category: string;
+  completed: boolean;
+};
 
-interface Item {
-  title: string;
-  content: string;
-}
+const categories = ['Food', 'Supplies', 'Medicine', 'Toys', 'Other'];
 
 export default function ShoppingList() {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
   const [items, setItems] = useState<Item[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [formData, setFormData] = useState<Omit<Item, 'id' | 'completed'>>({
+    name: '',
+    quantity: '',
+    category: 'Food'
+  });
 
-  const addItem = () => {
-    if (!title && !content) return;
-    setItems((prevItems) => [...prevItems, { title, content }]);
-    setTitle('');
-    setContent('');
+  const handleAddItem = () => {
+    if (!formData.name) {
+      Alert.alert('Error', 'Item name is required');
+      return;
+    }
+
+    if (editingItem) {
+      setItems(items.map(item =>
+        item.id === editingItem.id
+          ? { ...item, ...formData }
+          : item
+      ));
+    } else {
+      setItems([...items, { 
+        ...formData, 
+        id: Date.now().toString(),
+        completed: false 
+      }]);
+    }
+
     setModalVisible(false);
-  };
-
-  const removeItem = (index: number) => {
-    Alert.alert('Remove Item', 'Are you sure you want to remove this item?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          setItems((prevItems) => prevItems.filter((_, i) => i !== index));
-        },
-      },
-    ]);
-  };
-
-  const updateItem = (index: number, key: keyof Item, value: string) => {
-    setItems((prevItems) => {
-      const newItems = [...prevItems];
-      if (newItems[index]) {
-        newItems[index][key] = value;
-      }
-      return newItems;
+    setEditingItem(null);
+    setFormData({
+      name: '',
+      quantity: '',
+      category: 'Food'
     });
   };
 
-  const renderItem = ({ item, index }: { item: Item; index: number }) => (
+  const handleEdit = (item: Item) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      quantity: item.quantity,
+      category: item.category
+    });
+    setModalVisible(true);
+  };
+
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      'Delete Item',
+      'Are you sure you want to delete this item?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => setItems(items.filter(item => item.id !== id))
+        }
+      ]
+    );
+  };
+
+  const toggleComplete = (id: string) => {
+    setItems(items.map(item =>
+      item.id === id ? { ...item, completed: !item.completed } : item
+    ));
+  };
+
+  const renderItem = ({ item }: { item: Item }) => (
     <View style={styles.itemContainer}>
-      <TextInput
-        style={styles.itemTitle}
-        value={item.title}
-        onChangeText={(text) => updateItem(index, 'title', text)}
-        placeholder="Title"
-      />
-      <View style={styles.separator} />
-      <TextInput
-        style={styles.itemContent}
-        value={item.content}
-        onChangeText={(text) => updateItem(index, 'content', text)}
-        placeholder="Content"
-        multiline
-        textAlignVertical="top"
-      />
-      <TouchableOpacity style={styles.removeButton} onPress={() => removeItem(index)}>
-        <Ionicons name="remove-circle" size={24} color="#d9534f" />
+      <TouchableOpacity 
+        style={styles.checkbox}
+        onPress={() => toggleComplete(item.id)}
+      >
+        <Ionicons 
+          name={item.completed ? "checkmark-circle" : "ellipse-outline"} 
+          size={24} 
+          color={item.completed ? "#00796b" : "#666"}
+        />
       </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.itemContent}
+        onPress={() => handleEdit(item)}
+        onLongPress={() => handleDelete(item.id)}
+      >
+        <View style={styles.itemHeader}>
+          <Text style={[styles.itemName, item.completed && styles.completedText]}>
+            {item.name}
+          </Text>
+          <Text style={styles.itemCategory}>{item.category}</Text>
+        </View>
+        {item.quantity && (
+          <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderModalContent = () => (
+    <View>
+      <TextInput
+        style={styles.input}
+        placeholder="Item Name"
+        value={formData.name}
+        onChangeText={(text) => setFormData({ ...formData, name: text })}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Quantity (optional)"
+        value={formData.quantity}
+        onChangeText={(text) => setFormData({ ...formData, quantity: text })}
+      />
+
+      <Text style={styles.label}>Category</Text>
+      <View style={styles.categoryContainer}>
+        {categories.map((category) => (
+          <TouchableOpacity
+            key={category}
+            style={[
+              styles.categoryButton,
+              formData.category === category && styles.selectedCategory,
+            ]}
+            onPress={() => setFormData({ ...formData, category })}
+          >
+            <Text style={[
+              styles.categoryButtonText,
+              formData.category === category && styles.selectedCategoryText,
+            ]}>
+              {category}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <Text style={styles.header}>SpitzNotes</Text>
+      <Text style={styles.header}>Shopping List</Text>
       <FlatList
         data={items}
-        keyExtractor={(item: Item, index: number) => index.toString()}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
-      />
-      <TouchableOpacity style={styles.plusButton} onPress={() => setModalVisible(true)}>
-        <Ionicons name="add-circle" size={70} color="#00796b" />
-      </TouchableOpacity>
-      <Modal
-        animationType="none"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TextInput
-              style={styles.input}
-              placeholder="Title"
-              value={title}
-              onChangeText={setTitle}
-            />
-            <TextInput
-              style={[styles.input, styles.contentInput]}
-              placeholder=""
-              value={content}
-              onChangeText={setContent}
-              multiline
-              textAlignVertical="top"
-            />
-            <TouchableOpacity style={styles.addButton} onPress={addItem}>
-              <Text style={styles.addButtonText}>Add</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <Ionicons name="cart-outline" size={48} color="#ccc" />
+            <Text style={styles.emptyText}>Your shopping list is empty</Text>
           </View>
-        </View>
-      </Modal>
+        )}
+      />
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => {
+          setEditingItem(null);
+          setFormData({
+            name: '',
+            quantity: '',
+            category: 'Food'
+          });
+          setModalVisible(true);
+        }}
+      >
+        <Ionicons name="add" size={30} color="#fff" />
+      </TouchableOpacity>
+      <ModalSystem
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingItem(null);
+          setFormData({
+            name: '',
+            quantity: '',
+            category: 'Food'
+          });
+        }}
+        type="form"
+        size="small"
+        title={editingItem ? 'Edit Item' : 'Add Item'}
+        actions={[
+          {
+            label: 'Cancel',
+            onPress: () => {
+              setModalVisible(false);
+              setEditingItem(null);
+              setFormData({
+                name: '',
+                quantity: '',
+                category: 'Food'
+              });
+            },
+            variant: 'secondary'
+          },
+          {
+            label: editingItem ? 'Save' : 'Add',
+            onPress: handleAddItem,
+            variant: 'primary'
+          }
+        ]}
+      >
+        {renderModalContent()}
+      </ModalSystem>
     </GestureHandlerRootView>
   );
 }
@@ -138,89 +244,109 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 10,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    width: '100%',
+    marginBottom: 12,
+    fontSize: 16,
   },
-  contentInput: {
-    height: 100, // Increase the height of the content input
-    textAlignVertical: 'top', // Align text to the top
-  },
-  addButton: {
-    backgroundColor: '#00796b',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 5,
-    width: '100%',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  label: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 8,
   },
   itemContainer: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
     backgroundColor: '#fff',
     borderRadius: 8,
     marginBottom: 10,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  itemTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: -10,
+  checkbox: {
+    marginRight: 10,
   },
   itemContent: {
+    flex: 1,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  itemName: {
     fontSize: 16,
-    marginBottom: -5,
-    textAlignVertical: 'top', // Align text to the top
+    fontWeight: '500',
   },
-  separator: {
-    height: 1,
-    backgroundColor: '#ccc',
-    marginVertical: 8,
+  itemCategory: {
+    fontSize: 14,
+    color: '#00796b',
+    backgroundColor: 'rgba(0, 121, 107, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
-  removeButton: {
-    position: 'absolute',
-    top: 17,
-    right: 10,
+  itemQuantity: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
   },
-  plusButton: {
-    position: 'absolute',
-    bottom: 25,
-    right: '50%',
-    transform: [{ translateX: 20 },],
+  completedText: {
+    textDecorationLine: 'line-through',
+    color: '#666',
   },
-  modalContainer: {
+  emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 48,
   },
-  modalContent: {
-    width: '80%',
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 8,
-    alignItems: 'center',
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
-  closeButton: {
-    backgroundColor: '#d9534f',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-    width: '100%',
+  categoryContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+    gap: 8,
   },
-  closeButtonText: {
+  categoryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  selectedCategory: {
+    backgroundColor: '#00796b',
+  },
+  categoryButtonText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  selectedCategoryText: {
     color: '#fff',
-    fontWeight: 'bold',
+  },
+  addButton: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#00796b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });

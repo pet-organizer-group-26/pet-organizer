@@ -16,8 +16,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { signIn } from '../hooks/useAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
 
 // Make sure to register for redirect URI
 WebBrowser.maybeCompleteAuthSession();
@@ -99,21 +99,23 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      await signIn(email, password);
-      // If successful, navigate to home
-      router.push('/');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // If successful, navigate to home
+        router.push('/');
+      }
     } catch (error: any) {
-      // Handle Firebase auth errors
-      switch (error.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-          setPasswordError('Invalid email or password');
-          break;
-        case 'auth/too-many-requests':
-          setPasswordError('Too many failed attempts. Please try again later');
-          break;
-        default:
-          setPasswordError('An error occurred. Please try again');
+      // Handle Supabase auth errors
+      if (error.message) {
+        setPasswordError(error.message);
+      } else {
+        setPasswordError('An error occurred. Please try again');
       }
       console.error(error);
     } finally {
@@ -122,7 +124,17 @@ export default function LoginScreen() {
   };
   
   const handleGoogleLogin = async () => {
-    promptAsync();
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      
+      if (error) throw error;
+      
+      // The OAuth sign in will redirect the user automatically
+    } catch (error) {
+      console.error('Error with Google sign in:', error);
+    }
   };
 
   const handleGuestAccess = async () => {

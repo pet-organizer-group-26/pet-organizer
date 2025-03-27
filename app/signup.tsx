@@ -15,8 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { app } from '../constants/firebaseConfig';
+import { supabase } from '../lib/supabase';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -71,31 +70,29 @@ export default function SignupScreen() {
     }
 
     try {
-      const auth = getAuth(app);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('User account created:', userCredential.user);
-      
-      // Navigate to home screen after successful signup
-      router.push('/');
-    } catch (error: any) {
-      // Handle specific Firebase auth errors
-      switch (error.code) {
-        case 'auth/email-already-in-use':
-          Alert.alert('Error', 'This email is already registered');
-          break;
-        case 'auth/invalid-email':
-          Alert.alert('Error', 'Invalid email address');
-          break;
-        case 'auth/operation-not-allowed':
-          Alert.alert('Error', 'Email/password accounts are not enabled');
-          break;
-        case 'auth/weak-password':
-          Alert.alert('Error', 'Please choose a stronger password');
-          break;
-        default:
-          Alert.alert('Error', 'Failed to create account');
-          console.error(error);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        console.log('User account created:', data.user);
+        Alert.alert(
+          'Success',
+          'Account created successfully! Please check your email for verification.',
+          [{ text: 'OK', onPress: () => router.push('/') }]
+        );
       }
+    } catch (error: any) {
+      // Handle Supabase auth errors
+      if (error.message) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert('Error', 'Failed to create account');
+      }
+      console.error(error);
     }
   };
 

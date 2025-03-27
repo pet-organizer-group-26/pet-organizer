@@ -3,22 +3,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
-import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
-import { app } from '../constants/firebaseConfig';
+import { supabase } from '../lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 // Define which screens don't require authentication
 const publicScreens = ['login', 'signup'];
 
 // Define visible screens
-const visibleScreens = ['index', 'calendar', 'pets', 'shoppingList'];
+const visibleScreens = ['index', 'calendar', 'pets', 'shoppingList', 'expenses', 'emergency'];
 
 export default function Layout() {
   const router = useRouter();
   const segments = useSegments();
-  const auth = getAuth(app);
   const [isGuest, setIsGuest] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     // Check guest status
@@ -26,19 +26,23 @@ export default function Layout() {
       setIsGuest(value === 'true');
     });
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user || null);
       const currentScreen = segments[segments.length - 1];
 
-      if (!user && !isGuest && !publicScreens.includes(currentScreen)) {
+      if (!session?.user && !isGuest && !publicScreens.includes(currentScreen)) {
         // Redirect to login if user is not authenticated and not a guest
         router.replace('/login');
-      } else if ((user || isGuest) && publicScreens.includes(currentScreen)) {
+      } else if ((session?.user || isGuest) && publicScreens.includes(currentScreen)) {
         // Redirect to home if user is authenticated or is a guest
         router.replace('/');
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [segments, isGuest]);
 
   const handleLogout = async () => {
@@ -48,8 +52,9 @@ export default function Layout() {
         await AsyncStorage.removeItem('isGuest');
         setIsGuest(false);
       } else {
-        // Sign out from Firebase
-        await signOut(auth);
+        // Sign out from Supabase
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
       }
       // Redirect to login
       router.replace('/login');
@@ -115,6 +120,10 @@ export default function Layout() {
         return 'paw-outline';
       case 'shoppingList':
         return 'cart-outline';
+      case 'expenses':
+        return 'wallet-outline';
+      case 'emergency':
+        return 'alert-circle-outline';
       default:
         return 'list-outline';
     }
@@ -130,6 +139,10 @@ export default function Layout() {
         return 'Pets';
       case 'shoppingList':
         return 'Shopping List';
+      case 'expenses':
+        return 'Expenses';
+      case 'emergency':
+        return 'Emergency';
       default:
         return routeName;
     }
@@ -185,6 +198,24 @@ export default function Layout() {
           title: 'Shopping List',
           drawerIcon: ({ color, size }) => (
             <Ionicons name="cart-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="expenses"
+        options={{
+          title: 'Expenses',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Drawer.Screen
+        name="emergency"
+        options={{
+          title: 'Emergency',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="alert-circle-outline" size={size} color={color} />
           ),
         }}
       />
