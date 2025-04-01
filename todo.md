@@ -40,6 +40,22 @@
 - [x] Error handling
 - [ ] Performance testing
 
+## iOS Deployment Tasks
+- [x] Clean and reset iOS build environment
+- [x] Configure code signing in Xcode
+- [x] Fix package version compatibility issues:
+  - [x] Resolve @react-native-community/datetimepicker error
+  - [x] Update @react-native-async-storage/async-storage to compatible version
+  - [x] Ensure other Expo packages are compatible
+- [ ] Resolve module map and sandbox permission issues:
+  - [ ] Try creating a development build instead of production archive
+  - [ ] Switch to Debug configuration in Xcode scheme
+  - [ ] Generate new modulemap files by rebuilding from scratch
+  - [ ] Manually enable Disable Library Validation in Xcode settings
+  - [ ] Test with EAS build service as alternative
+- [ ] Complete iOS build and deployment to device
+- [ ] Test app functionality on iOS device
+
 ## Next Steps
 1. [x] Create Supabase database schema:
    ```sql

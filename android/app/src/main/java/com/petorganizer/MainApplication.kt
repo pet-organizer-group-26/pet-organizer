@@ -1,4 +1,4 @@
-package com.group26.petorganizer
+package com.petorganizer
 
 import android.app.Application
 import android.content.res.Configuration
