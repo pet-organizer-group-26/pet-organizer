@@ -1,7 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Linking } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import ModalSystem from './components/ModalSystem';
+import { Button } from '../components/common/Button';
+import { Card } from '../components/common/Card';
+import { InputField } from '../components/common/InputField';
+import theme from '../constants/theme';
 
 type Contact = {
   id: string;
@@ -39,10 +43,28 @@ export default function EmergencyContacts() {
     type: 'Vet',
     notes: ''
   });
+  const [errors, setErrors] = useState({
+    name: '',
+    phone: ''
+  });
 
   const handleAddContact = () => {
-    if (!formData.name || !formData.phone) {
-      Alert.alert('Error', 'Name and phone number are required');
+    // Reset errors
+    const newErrors = { name: '', phone: '' };
+    let hasError = false;
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+      hasError = true;
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setErrors(newErrors);
       return;
     }
 
@@ -52,8 +74,22 @@ export default function EmergencyContacts() {
           ? { ...formData, id: contact.id }
           : contact
       ));
+      
+      // Add success message for editing
+      Alert.alert(
+        'Success',
+        'Contact updated successfully',
+        [{ text: 'OK' }]
+      );
     } else {
       setContacts([...contacts, { ...formData, id: Date.now().toString() }]);
+      
+      // Add success message for adding
+      Alert.alert(
+        'Success',
+        'Contact added successfully',
+        [{ text: 'OK' }]
+      );
     }
 
     setModalVisible(false);
@@ -64,6 +100,7 @@ export default function EmergencyContacts() {
       type: 'Vet',
       notes: ''
     });
+    setErrors({ name: '', phone: '' });
   };
 
   const handleEdit = (contact: Contact) => {
@@ -74,6 +111,7 @@ export default function EmergencyContacts() {
       type: contact.type,
       notes: contact.notes || ''
     });
+    setErrors({ name: '', phone: '' });
     setModalVisible(true);
   };
 
@@ -86,7 +124,16 @@ export default function EmergencyContacts() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => setContacts(contacts.filter(contact => contact.id !== id))
+          onPress: () => {
+            setContacts(contacts.filter(contact => contact.id !== id));
+            
+            // Add success message for deleting
+            Alert.alert(
+              'Success',
+              'Contact deleted successfully',
+              [{ text: 'OK' }]
+            );
+          }
         }
       ]
     );
@@ -96,8 +143,19 @@ export default function EmergencyContacts() {
     Linking.openURL(`tel:${phone.replace(/\D/g, '')}`);
   };
 
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Vet': return theme.colors.error.light;
+      case 'Pet Sitter': return theme.colors.success.light;
+      case 'Emergency Contact': return theme.colors.warning.light;
+      case 'Family': return theme.colors.secondary.light;
+      case 'Friend': return theme.colors.primary.light;
+      default: return theme.colors.primary.light;
+    }
+  };
+
   const renderContact = ({ item }: { item: Contact }) => (
-    <View style={styles.contactItem}>
+    <Card variant="layered" style={styles.contactItem}>
       <TouchableOpacity 
         style={styles.contactContent}
         onPress={() => handleEdit(item)}
@@ -105,38 +163,61 @@ export default function EmergencyContacts() {
       >
         <View style={styles.contactHeader}>
           <Text style={styles.contactName}>{item.name}</Text>
-          <Text style={styles.contactType}>{item.type}</Text>
+          <View style={[styles.typeTag, { backgroundColor: `${getTypeColor(item.type)}30` }]}>
+            <Text style={[styles.contactType, { color: theme.colors.text.primary }]}>{item.type}</Text>
+          </View>
         </View>
-        <Text style={styles.contactPhone}>{item.phone}</Text>
-        {item.notes && <Text style={styles.contactNotes}>{item.notes}</Text>}
+        <View style={styles.contactRow}>
+          <Ionicons name="call-outline" size={16} color={theme.colors.text.secondary} style={styles.contactIcon} />
+          <Text style={styles.contactPhone}>{item.phone}</Text>
+        </View>
+        {item.notes && (
+          <View style={styles.contactRow}>
+            <Ionicons name="information-circle-outline" size={16} color={theme.colors.text.secondary} style={styles.contactIcon} />
+            <Text style={styles.contactNotes}>{item.notes}</Text>
+          </View>
+        )}
       </TouchableOpacity>
-      <TouchableOpacity 
-        style={styles.callButton}
+      
+      <Button
+        title="Call"
         onPress={() => handleCall(item.phone)}
-      >
-        <Ionicons name="call-outline" size={20} color="#fff" />
-        <Text style={styles.callButtonText}>Call</Text>
-      </TouchableOpacity>
-    </View>
+        variant="primary"
+        size="small"
+        leftIcon={<Ionicons name="call-outline" size={16} color="white" />}
+        style={styles.callButton}
+      />
+    </Card>
   );
 
   const renderModalContent = () => (
     <View>
-      <TextInput
-        style={styles.input}
-        placeholder="Name"
+      <InputField
+        label="Name"
+        placeholder="Contact name"
         value={formData.name}
-        onChangeText={(text) => setFormData({ ...formData, name: text })}
+        onChangeText={(text) => {
+          setFormData({ ...formData, name: text });
+          if (text.trim()) setErrors({ ...errors, name: '' });
+        }}
+        error={errors.name}
+        leftIcon={<Ionicons name="person-outline" size={20} color={theme.colors.primary.main} />}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Phone Number"
+      <InputField
+        label="Phone Number"
+        placeholder="(555) 123-4567"
         value={formData.phone}
-        onChangeText={(text) => setFormData({ ...formData, phone: text })}
+        onChangeText={(text) => {
+          setFormData({ ...formData, phone: text });
+          if (text.trim()) setErrors({ ...errors, phone: '' });
+        }}
         keyboardType="phone-pad"
+        error={errors.phone}
+        leftIcon={<Ionicons name="call-outline" size={20} color={theme.colors.primary.main} />}
       />
 
+      <Text style={styles.inputLabel}>Contact Type</Text>
       <View style={styles.typeContainer}>
         {contactTypes.map((type) => (
           <TouchableOpacity
@@ -144,6 +225,7 @@ export default function EmergencyContacts() {
             style={[
               styles.typeButton,
               formData.type === type && styles.selectedType,
+              formData.type === type && { backgroundColor: theme.colors.primary.main },
             ]}
             onPress={() => setFormData({ ...formData, type })}
           >
@@ -157,27 +239,35 @@ export default function EmergencyContacts() {
         ))}
       </View>
 
-      <TextInput
-        style={[styles.input, styles.notesInput]}
-        placeholder="Notes (optional)"
+      <InputField
+        label="Notes (optional)"
+        placeholder="Additional information"
         value={formData.notes}
         onChangeText={(text) => setFormData({ ...formData, notes: text })}
         multiline
         numberOfLines={3}
+        inputStyle={styles.notesInput}
+        leftIcon={<Ionicons name="create-outline" size={20} color={theme.colors.primary.main} />}
       />
     </View>
   );
 
   return (
     <View style={styles.container}>
+      <Text style={styles.title}>Emergency Contacts</Text>
+      
       <FlatList
         data={contacts}
         renderItem={renderContact}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color="#ccc" />
+            <Ionicons name="people-outline" size={60} color={theme.colors.primary.light} />
             <Text style={styles.emptyText}>No emergency contacts yet</Text>
+            <Text style={styles.emptySubtext}>
+              Tap the + button to add your first contact
+            </Text>
           </View>
         )}
       />
@@ -192,10 +282,11 @@ export default function EmergencyContacts() {
             type: 'Vet',
             notes: ''
           });
+          setErrors({ name: '', phone: '' });
           setModalVisible(true);
         }}
       >
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
 
       <ModalSystem
@@ -209,11 +300,17 @@ export default function EmergencyContacts() {
             type: 'Vet',
             notes: ''
           });
+          setErrors({ name: '', phone: '' });
         }}
         type="form"
         size="medium"
         title={editingContact ? 'Edit Contact' : 'Add Contact'}
         actions={[
+          {
+            label: editingContact ? 'Save' : 'Add',
+            onPress: handleAddContact,
+            variant: 'primary'
+          },
           {
             label: 'Cancel',
             onPress: () => {
@@ -225,13 +322,9 @@ export default function EmergencyContacts() {
                 type: 'Vet',
                 notes: ''
               });
+              setErrors({ name: '', phone: '' });
             },
             variant: 'secondary'
-          },
-          {
-            label: editingContact ? 'Save' : 'Add',
-            onPress: handleAddContact,
-            variant: 'primary'
           }
         ]}
       >
@@ -244,98 +337,110 @@ export default function EmergencyContacts() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: theme.colors.background.default,
+    padding: theme.spacing.lg,
+  },
+  title: {
+    fontSize: theme.typography.fontSize.xl,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
+  },
+  listContent: {
+    paddingBottom: 80,
+    gap: theme.spacing.md,
   },
   contactItem: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: theme.spacing.md,
+    marginBottom: 0,
   },
   contactContent: {
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   contactHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   contactName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: theme.typography.fontSize.lg,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    flex: 1,
+  },
+  typeTag: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: theme.borderRadius.sm,
   },
   contactType: {
-    fontSize: 14,
-    color: '#00796b',
-    fontWeight: '500',
-    backgroundColor: 'rgba(0, 121, 107, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    fontSize: theme.typography.fontSize.xs,
+    fontFamily: theme.typography.fontFamily.medium,
   },
-  contactPhone: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  contactNotes: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-  },
-  callButton: {
+  contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#00796b',
-    padding: 8,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+    marginBottom: theme.spacing.xs,
   },
-  callButtonText: {
-    color: '#fff',
-    marginLeft: 4,
-    fontWeight: '500',
+  contactIcon: {
+    marginRight: theme.spacing.xs,
+  },
+  contactPhone: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+  },
+  contactNotes: {
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    flex: 1,
+  },
+  callButton: {
+    alignSelf: 'flex-start',
   },
   addButton: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#00796b',
+    bottom: theme.spacing.lg,
+    right: theme.spacing.lg,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.primary.main,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 3.84,
   },
   emptyState: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 48,
+    justifyContent: 'center',
+    padding: theme.spacing.xl,
+    marginTop: theme.spacing.xl * 2,
   },
   emptyText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.typography.fontSize.lg,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.md,
   },
-  input: {
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    fontSize: 16,
+  emptySubtext: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+  },
+  inputLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   notesInput: {
     height: 80,
@@ -344,25 +449,28 @@ const styles = StyleSheet.create({
   typeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
-    justifyContent: 'flex-start',
+    marginBottom: theme.spacing.md,
   },
   typeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    marginBottom: 8,
-    marginRight: 8,
+    backgroundColor: theme.colors.background.paper,
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
+    marginBottom: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
   },
   selectedType: {
-    backgroundColor: '#00796b',
+    borderColor: theme.colors.primary.main,
   },
   typeButtonText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
   },
   selectedTypeText: {
-    color: '#fff',
+    color: 'white',
+    fontFamily: theme.typography.fontFamily.medium,
   },
 });

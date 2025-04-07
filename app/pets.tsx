@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TextInput, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, Modal, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-
-const COLORS = {
-  primary: '#00796b',
-  secondary: '#00a99e',
-  background: '#fff',
-  text: '#333',
-  lightText: '#555',
-  border: '#eee',
-};
+import { Button } from '../components/common/Button';
+import { Card } from '../components/common/Card';
+import { InputField } from '../components/common/InputField';
+import theme from '../constants/theme';
+import { useRouter } from 'expo-router';
 
 export default function PetsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -20,6 +16,8 @@ export default function PetsScreen() {
   const [petType, setPetType] = useState('Dog');
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [petImage, setPetImage] = useState<string | null>(null);
+  const [nameError, setNameError] = useState('');
+  const router = useRouter();
 
   const petTypes = ['Dog', 'Cat', 'Bird', 'Fish', 'Rabbit', 'Hamster', 'Other'];
 
@@ -64,16 +62,7 @@ export default function PetsScreen() {
     setPetType('Dog');
     setPetImage(null);
     setEditingPetIndex(null);
-  };
-
-  const addPet = () => {
-    if (petName.trim()) {
-      setPets([...pets, { name: petName, type: petType, image: petImage }]);
-      setPetName('');
-      setPetType('Dog');
-      setPetImage(null);
-      setModalVisible(false);
-    }
+    setNameError('');
   };
 
   const editPet = (index: number) => {
@@ -86,48 +75,108 @@ export default function PetsScreen() {
   };
 
   const handleSave = () => {
-    if (petName.trim()) {
-      if (editingPetIndex !== null) {
-        // Update existing pet
-        const updatedPets = [...pets];
-        updatedPets[editingPetIndex] = { name: petName, type: petType, image: petImage };
-        setPets(updatedPets);
-      } else {
-        // Add new pet
-        setPets([...pets, { name: petName, type: petType, image: petImage }]);
-      }
-      // Reset form
-      setPetName('');
-      setPetType('Dog');
-      setPetImage(null);
-      setEditingPetIndex(null);
-      setModalVisible(false);
+    // Validate inputs
+    if (!petName.trim()) {
+      setNameError('Pet name is required');
+      return;
     }
+
+    if (editingPetIndex !== null) {
+      // Update existing pet
+      const updatedPets = [...pets];
+      updatedPets[editingPetIndex] = { name: petName, type: petType, image: petImage };
+      setPets(updatedPets);
+      
+      // Add success message for editing
+      Alert.alert(
+        'Success',
+        'Pet updated successfully',
+        [{ text: 'OK' }]
+      );
+    } else {
+      // Add new pet
+      setPets([...pets, { name: petName, type: petType, image: petImage }]);
+      
+      // Add success message for adding
+      Alert.alert(
+        'Success',
+        'Pet added successfully',
+        [{ text: 'OK' }]
+      );
+    }
+    // Reset form
+    setPetName('');
+    setPetType('Dog');
+    setPetImage(null);
+    setEditingPetIndex(null);
+    setNameError('');
+    setModalVisible(false);
+  };
+
+  // Add delete pet function
+  const deletePet = (index: number) => {
+    Alert.alert(
+      'Delete Pet',
+      'Are you sure you want to delete this pet?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => {
+            const updatedPets = [...pets];
+            updatedPets.splice(index, 1);
+            setPets(updatedPets);
+            
+            // Add success message for deleting
+            Alert.alert(
+              'Success',
+              'Pet deleted successfully',
+              [{ text: 'OK' }]
+            );
+          }
+        }
+      ]
+    );
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>My Pets</Text>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {pets.map((pet, index) => (
-          <TouchableOpacity 
-            key={index} 
-            style={styles.petPanel}
-            onPress={() => editPet(index)}
-          >
-            {pet.image && (
-              <Image source={{ uri: pet.image }} style={styles.petImage} />
-            )}
-            <View style={styles.petInfo}>
-              <Text style={styles.label}>Name:</Text>
-              <Text style={styles.petName}>{pet.name}</Text>
-            </View>
-            <View style={styles.petInfo}>
-              <Text style={styles.label}>Type:</Text>
-              <Text style={styles.petType}>{pet.type}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
+        {pets.length > 0 ? (
+          pets.map((pet, index) => (
+            <Card key={index} variant="layered" style={styles.petPanel}>
+              <TouchableOpacity onPress={() => editPet(index)}>
+                {pet.image && (
+                  <Image source={{ uri: pet.image }} style={styles.petImage} />
+                )}
+                <View style={styles.petInfo}>
+                  <Text style={styles.label}>Name:</Text>
+                  <Text style={styles.petName}>{pet.name}</Text>
+                </View>
+                <View style={styles.petInfo}>
+                  <Text style={styles.label}>Type:</Text>
+                  <Text style={styles.petType}>{pet.type}</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.deleteButton}
+                onPress={() => deletePet(index)}
+              >
+                <Ionicons name="trash-outline" size={20} color={theme.colors.error.main} />
+              </TouchableOpacity>
+            </Card>
+          ))
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="paw" size={60} color={theme.colors.primary.light} />
+            <Text style={styles.emptyText}>No pets added yet</Text>
+            <Text style={styles.emptySubtext}>
+              Tap the button below to add your first pet
+            </Text>
+          </View>
+        )}
       </ScrollView>
       <TouchableOpacity
         style={styles.addButton}
@@ -136,10 +185,11 @@ export default function PetsScreen() {
           setPetType('Dog');
           setPetImage(null);
           setEditingPetIndex(null);
+          setNameError('');
           setModalVisible(true);
         }}
       >
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
       
       <Modal visible={modalVisible} animationType="slide">
@@ -163,30 +213,37 @@ export default function PetsScreen() {
               )}
             </View>
             <View style={styles.imageButtonsContainer}>
-              <TouchableOpacity 
-                style={[styles.imageButton, { marginRight: 10 }]} 
+              <Button
+                title="Take Photo"
                 onPress={() => pickImage(true)}
-              >
-                <Text style={styles.imageButtonText}>Take Photo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.imageButton} 
+                variant="outline"
+                size="small"
+                leftIcon={<Ionicons name="camera-outline" size={18} color={theme.colors.primary.main} />}
+                style={styles.imageButton}
+              />
+              <Button
+                title="Choose Photo"
                 onPress={() => pickImage(false)}
-              >
-                <Text style={styles.imageButtonText}>Choose Photo</Text>
-              </TouchableOpacity>
+                variant="outline"
+                size="small"
+                leftIcon={<Ionicons name="image-outline" size={18} color={theme.colors.primary.main} />}
+                style={styles.imageButton}
+              />
             </View>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Pet Name</Text>
-            <TextInput
-              placeholder="Enter pet name"
-              value={petName}
-              onChangeText={setPetName}
-              style={styles.input}
-            />
-          </View>
+          <InputField
+            label="Pet Name"
+            placeholder="Enter pet name"
+            value={petName}
+            onChangeText={(text) => {
+              setPetName(text);
+              if (text.trim()) setNameError('');
+            }}
+            error={nameError}
+            leftIcon={<Ionicons name="paw-outline" size={22} color={theme.colors.primary.main} />}
+          />
+
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Pet Type</Text>
             <TouchableOpacity 
@@ -194,7 +251,7 @@ export default function PetsScreen() {
               onPress={() => setShowTypePicker(true)}
             >
               <Text style={styles.typeSelectorText}>{petType}</Text>
-              <Text style={styles.dropdownIcon}>▼</Text>
+              <Ionicons name="chevron-down" size={20} color={theme.colors.text.secondary} />
             </TouchableOpacity>
           </View>
           
@@ -222,17 +279,20 @@ export default function PetsScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.modalButton} onPress={handleSave}>
-            <Text style={styles.modalButtonText}>
-              {editingPetIndex !== null ? 'Save Changes' : 'Add Pet'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.modalButton, styles.cancelButton]} 
+          <Button
+            title={editingPetIndex !== null ? 'Save Changes' : 'Add Pet'}
+            onPress={handleSave}
+            variant="primary"
+            size="large"
+            style={styles.modalButton}
+          />
+          <Button
+            title="Cancel"
             onPress={handleModalClose}
-          >
-            <Text style={styles.modalButtonText}>Cancel</Text>
-          </TouchableOpacity>
+            variant="outline"
+            size="large"
+            style={styles.cancelButton}
+          />
         </View>
       </Modal>
     </View>
@@ -242,62 +302,116 @@ export default function PetsScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    padding: 20, 
-    backgroundColor: COLORS.background 
+    padding: theme.spacing.lg, 
+    backgroundColor: theme.colors.background.default,
   },
   title: { 
-    fontSize: 28, 
-    fontWeight: 'bold', 
-    marginBottom: 20, 
-    textAlign: 'center',
-    color: COLORS.primary
+    fontSize: theme.typography.fontSize.xxl, 
+    fontFamily: theme.typography.fontFamily.bold, 
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
   },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: 100 },
+  scrollContent: { 
+    paddingBottom: theme.spacing.xl,
+    gap: theme.spacing.md,
+  },
   petPanel: {
-    backgroundColor: 'white',
-    padding: 20,
-    marginVertical: 8,
-    borderRadius: 15,
-    elevation: 3,
+    padding: theme.spacing.md,
+    marginBottom: 0,
+  },
+  petInfo: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.xs,
+  },
+  label: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.secondary,
+    marginRight: theme.spacing.xs,
+  },
+  petName: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.primary,
+  },
+  petType: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+    marginTop: theme.spacing.xl * 2,
+  },
+  emptyText: {
+    fontSize: theme.typography.fontSize.lg,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.md,
+  },
+  emptySubtext: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: theme.spacing.lg,
+    right: theme.spacing.lg,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.primary.main,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  petInfo: { flexDirection: 'row', alignItems: 'center', marginVertical: 4 },
-  label: { fontSize: 16, color: COLORS.lightText, width: 50 },
-  petName: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, flex: 1 },
-  petType: { fontSize: 18, color: COLORS.text, flex: 1 },
-  modalContainer: { flex: 1, padding: 20, backgroundColor: '#f5f5f5', justifyContent: 'center' },
-  modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 30, textAlign: 'center' },
-  inputContainer: { marginBottom: 20 },
-  inputLabel: { fontSize: 16, marginBottom: 8, color: COLORS.text },
-  input: { 
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    fontSize: 16
+  modalContainer: {
+    flex: 1,
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.background.default,
+  },
+  modalTitle: {
+    fontSize: theme.typography.fontSize.xl,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.lg,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    marginBottom: theme.spacing.md,
+  },
+  inputLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
   },
   typeSelector: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    height: 48,
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.background.default,
   },
   typeSelectorText: {
-    fontSize: 16,
-    color: '#333'
-  },
-  dropdownIcon: {
-    fontSize: 12,
-    color: '#666'
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
   },
   typePickerOverlay: {
     position: 'absolute',
@@ -311,110 +425,85 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   typePickerContainer: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 10,
     width: '80%',
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
     maxHeight: '70%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   typeOption: {
-    padding: 15,
+    paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee'
+    borderBottomColor: theme.colors.divider,
   },
   typeOptionText: {
-    fontSize: 16,
-    color: '#333'
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
+    textAlign: 'center',
   },
   selectedTypeText: {
-    color: COLORS.primary,
-    fontWeight: 'bold'
-  },
-  addButton: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    color: theme.colors.primary.main,
+    fontFamily: theme.typography.fontFamily.bold,
   },
   modalButton: {
-    backgroundColor: COLORS.primary,
-    padding: 15,
-    borderRadius: 10,
-    marginVertical: 8,
-    alignItems: 'center',
+    marginTop: theme.spacing.md,
+    height: 50,
   },
-  cancelButton: { 
-    backgroundColor: COLORS.secondary
+  cancelButton: {
+    marginTop: theme.spacing.md,
+    height: 50,
   },
-  modalButtonText: { color: 'white', fontSize: 18 },
   petImage: {
     width: '100%',
     height: 200,
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.md,
   },
   imageContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
   },
   imagePreviewContainer: {
     width: 200,
     height: 200,
-    borderRadius: 10,
+    borderRadius: theme.borderRadius.md,
     overflow: 'hidden',
-    backgroundColor: '#e0e0e0',
-    marginBottom: 10,
+    backgroundColor: theme.colors.background.paper,
+    marginBottom: theme.spacing.md,
   },
   imagePreview: {
     width: '100%',
     height: '100%',
-    borderRadius: 10,
+    borderRadius: theme.borderRadius.md,
   },
   imagePlaceholder: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: theme.colors.primary.light,
     borderStyle: 'dashed',
-    borderRadius: 10,
-    backgroundColor: '#f5f5f5',
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background.paper,
   },
   imagePickerText: {
-    color: COLORS.lightText,
-    fontSize: 16,
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
   },
   imageButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     width: '100%',
+    gap: theme.spacing.md,
   },
   imageButton: {
-    backgroundColor: COLORS.primary,
-    padding: 10,
-    borderRadius: 5,
     flex: 1,
-    maxWidth: 150,
-    alignItems: 'center',
   },
-  imageButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
+  deleteButton: {
+    position: 'absolute',
+    top: theme.spacing.xs,
+    right: theme.spacing.xs,
   },
 });

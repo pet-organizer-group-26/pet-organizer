@@ -59,3 +59,202 @@
   - `No such module 'ExpoModulesCore'` error in ExpoModulesProvider.swift
   - Sandbox permission denied for expo-configure-project.sh
   - Attempting alternative approach with Development build 
+
+## April 7, 2024
+- Troubleshooting AddEvent component issues:
+  - Identified a critical bug in the handleSave function error handling
+  - Fixed syntax problem in try/catch block that was causing silent failures
+  - Added better error logging for debugging event creation issues
+  - Applied fix to ensure proper error handling for database operations
+  - This partially resolves the issue where attempting to add an event appeared to do nothing
+  - **Identified root cause**: Schema mismatch error - "Could not find the 'date' column of 'events' in the schema cache"
+  - **Fixed**: Updated code to use 'event_date' and 'event_time' instead of 'date' and 'time' to match actual database schema
+  - Updated multiple components to use the correct column names:
+    - Modified AddEvent component generateRepeats and scheduleLocalNotification functions
+    - Updated Calendar component to use correct field names for displaying and filtering events
+    - Fixed Event type definition to reflect correct database schema
+  - Fixed real-time update issue in Calendar component:
+    - Added better logging to track subscription updates
+    - Verified subscription configuration was properly set up
+    - Fixed useEffect dependency array to ensure proper initialization
+    - **Enhanced**: Implemented separate handlers for INSERT/UPDATE/DELETE events
+    - **Enhanced**: Used optimistic updates to avoid full re-fetching with each change
+    - **Enhanced**: Added loading state to prevent duplicate submissions
+    - **Fixed**: Completely simplified real-time subscription implementation to use a more robust approach
+    - **Fixed**: Properly handling channel cleanup with removeChannel
+    - **Expo-specific fix**: Implemented useFocusEffect to refresh data when returning to Calendar screen
+    - **Expo-specific fix**: Modified navigation flow to prevent app reloads that were breaking subscriptions
+    - **Refined UX**: Removed manual refresh button as automatic refresh is functioning well
+    - **Refined UX**: Simplified success alert to only show "Go to Calendar" option after event creation
+    - This resolves the issue where events weren't automatically displayed after creation
+  - **Fixed editing and deleting events real-time updates**:
+    - Improved the real-time subscription to explicitly handle all event types (INSERT, UPDATE, DELETE)
+    - Added specific handlers for each operation type for more precise state updates
+    - Enhanced handleDelete and handleSaveEdit functions to work with real-time updates
+    - Added proper user feedback during edit/delete operations with alerts
+    - Improved error handling for database operations with user-friendly error messages
+    - Implemented filtering by user_id in real-time subscription for better security and efficiency
+    - **Further improvements**:
+      - Added unique channel names with timestamps to prevent subscription conflicts
+      - Implemented fallback manual updates in case real-time updates fail
+      - Added success confirmation alerts after editing or deleting events
+      - Applied optimistic UI updates to improve perceived performance
+    - This resolves the issue where edited or deleted events wouldn't automatically update on the calendar
+  - **Improved user feedback across the app**:
+    - Added success messages for all CRUD operations throughout the app:
+      - Added success alerts when adding, editing, and deleting shopping list items
+      - Added success alerts when adding, editing, and deleting expenses
+      - Added success alerts when adding, editing, and deleting emergency contacts
+      - Added success alerts when adding, editing, and deleting pets
+      - Enhanced the pet management screen with a delete pet button and functionality
+    - Implemented consistent alert styling and wording across the application
+    - Added proper error messages for validation failures
+    - Improved visual feedback when performing actions
+  - Added comprehensive testing plan for event creation/viewing lifecycle
+- Updated todo.md with additional debugging steps for future reference
+- Added more detailed error logging throughout the application
+- Corrected SQL schema definition in documentation to match actual implementation
+- **Enhanced modal button UX**:
+  - Improved the ModalSystem component to display buttons in a vertical stack
+  - Made buttons full width for better touch targets
+  - Increased button height and padding for better usability
+  - Reordered buttons to place primary actions first
+  - Standardized button height across all modals (50px)
+  - Applied consistent spacing between action buttons
+  - Fixed visual issues with thin buttons in forms
+  - This improves the usability and user experience across all modal dialogs
+
+## UI Improvements
+
+### Theme System Implementation
+- Created centralized theme system in `constants/theme.ts`
+- Defined consistent color palette, typography, spacing, and border radius values
+- Implemented reusable theme constants for consistent styling
+
+### Base Components
+- Created reusable Button component with variants (primary, outline, text)
+- Implemented InputField component with support for icons and error states
+- Added Card component for consistent container styling
+- All components use the new theme system for consistent styling
+
+### Screen Updates
+- Updated login screen to use new theme system and components
+  - Improved visual hierarchy and spacing
+  - Enhanced animations and transitions
+  - Added consistent error handling and validation
+  - Implemented proper keyboard handling
+
+- Updated pets screen with new theme system and components
+  - Replaced custom UI elements with standardized components
+  - Enhanced image picker integration with themed buttons
+  - Added form validation and error handling
+  - Improved empty state design
+  - Created consistent card layout for pet items
+  - Implemented typeahead dropdown for pet type selection
+
+- Updated expenses screen with new theme system and components
+  - Replaced TextInputs with consistent InputField components
+  - Enhanced expense items with Card components and category icons
+  - Added proper form validation with error messages
+  - Improved date picker with themed styling
+  - Created visually distinct category tags with color coding
+  - Enhanced empty state design and visual hierarchy
+
+- Updated emergency screen with new theme system and components
+  - Integrated Card components for contact items
+  - Enhanced contact details with icons and improved layout
+  - Added proper form validation for required fields
+  - Styled contact type tags with appropriate colors
+  - Replaced custom buttons with Button components
+  - Improved contact type selection UI
+  - Applied consistent typography and spacing
+
+- Updated shopping list screen with new theme system and components
+  - Implemented Card components for shopping items
+  - Enhanced item displays with category icons
+  - Added proper input validation for required fields
+  - Improved checkbox and completion status styling
+  - Created consistent category selection interface
+  - Applied theme typography and spacing throughout
+
+- Updated AddEvent screen with new theme system and components
+  - Replaced TextInputs with InputField components
+  - Enhanced date and time pickers with themed styling
+  - Improved category, repeat, and notification selection UI
+  - Added consistent form validation with error messages
+  - Styled buttons and section labels with theme values
+  - Integrated icons for improved visual context
+  - Added cancellation flow and improved save button UI
+  - Applied proper spacing and layout throughout the form
+
+### Custom Date & Time Picker Implementation
+- Created custom DatePicker, TimePicker, and DateTimePicker components:
+  - Implemented consistent UI across iOS and Android platforms
+  - Developed platform-specific implementations for native feel
+  - Added support for different date and time formats
+  - Integrated with the app theme system for styling consistency
+  - Implemented accessibility features including screen reader support
+  - Added proper error state handling and validation
+  - Created custom modals for iOS to ensure consistent UI
+  - Implemented min/max date constraints and time interval selection
+  - Created comprehensive documentation for the components
+
+- Updated screens to use custom date and time pickers:
+  - Integrated DatePicker component in AddEvent screen for event date selection
+  - Integrated TimePicker component in AddEvent screen for event time selection
+  - Updated expenses screen to use DatePicker for expense date selection
+  - Updated calendar screen to use DatePicker and TimePicker for event editing
+  - Applied consistent date and time formatting across all screens
+  - Implemented proper constraints for date selections (past/future limits)
+  - Added proper error handling for invalid date/time selections
+  - Enhanced UX with custom platform-specific date/time selection modals
+
+## April 7, 2024 (continued)
+- Fixed keyboard dismissal issue in expenses form:
+  - Added a checkmark button to the amount input field
+  - When tapped, the button dismisses the numeric keyboard
+  - Improved user experience by allowing users to easily dismiss the keyboard after entering the amount
+  - Modified InputField component usage to support the right icon for keyboard dismissal
+  - Imported Keyboard API from react-native to handle keyboard dismissal
+
+## Design System Achievements
+- Created a unified and consistent UI across all screens
+- Established clear visual hierarchy with standardized typography
+- Implemented consistent spacing and layout rules
+- Created reusable patterns for forms, lists, and empty states
+- Standardized error handling and validation across inputs
+- Applied consistent color usage for different categories and states
+- Improved overall accessibility with clear visual indicators
+- Established consistent modal and dialog patterns
+- Unified selection controls (dropdown, radio, toggle) styling
+- Implemented consistent date and time selection experience
+
+## Next Steps
+1. Implement consistent form validation patterns across the app
+2. Add proper error handling and loading states for API operations
+3. Create comprehensive component documentation
+4. Add accessibility features including screen reader support
+5. Implement dark mode support using the theme system 
+
+## April 12, 2024
+- Fixed button UI issues in modals and forms:
+  - Modified the AddEvent component's button container to use vertical stack layout
+  - Updated the Expenses component's modal buttons to use vertical stack layout
+  - Increased button heights to 50px for better touch targets
+  - Made buttons full width for easier interaction
+  - Enhanced spacing between buttons for clearer visual hierarchy
+  - Fixed the thin button appearance visible in the mobile UI
+  - This change improves usability by providing larger touch targets
+
+## April 14, 2024
+- Enhanced shadow styling for UI cards across the application:
+  - Implemented layered shadow effects for realistic 3D appearance
+  - Created two new shadow styles: 'layered' and 'floating' for different elevation levels
+  - Enhanced Card component to support new shadow variants
+  - Updated shadow implementation with platform-specific optimizations for iOS and Android
+  - Added subtle borders to enhance shadow definition on Android
+  - Used semi-transparent backgrounds for softer shadow edges on iOS
+  - Applied slight transform to 'floating' variant for additional lift effect
+  - Updated Card component used in AddEvent screen to showcase new layered shadow effect
+  - Refined shadow colors to use rgba values for better depth perception
+  - This change significantly improves the visual hierarchy and tactile appearance of UI elements 

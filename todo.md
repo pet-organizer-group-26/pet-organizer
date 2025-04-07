@@ -63,11 +63,12 @@
      id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
      user_id UUID REFERENCES auth.users(id),
      title TEXT NOT NULL,
-     date DATE NOT NULL,
-     time TIME NOT NULL,
+     event_date DATE NOT NULL,
+     event_time TIME NOT NULL,
      category TEXT NOT NULL,
      location TEXT,
      repeat TEXT,
+     pet_id UUID,
      created_at TIMESTAMPTZ DEFAULT NOW(),
      updated_at TIMESTAMPTZ DEFAULT NOW()
    );
@@ -106,4 +107,138 @@
    - [x] Calendar component
    - [ ] Pets component
    - [ ] Shopping List component
-   - [ ] Expenses component 
+   - [ ] Expenses component
+
+## UI Improvements
+
+### High Priority
+- [x] Create a centralized theme.ts file with:
+  - [x] Color palette
+  - [x] Typography system
+  - [x] Spacing scale
+  - [x] Border radius values
+  - [x] Shadow definitions
+
+- [x] Implement base components:
+  - [x] Button component with variants (primary, secondary, outline, text)
+  - [x] Card component with consistent styling
+  - [x] InputField component with validation states
+  - [x] Header component with consistent styling
+
+### Medium Priority
+- [ ] Update all screens to use the new theme system:
+  - [ ] Login screen
+  - [ ] Signup screen
+  - [ ] Home screen
+  - [ ] Calendar screen
+  - [ ] Pets screen
+  - [ ] Shopping List screen
+  - [ ] Expenses screen
+  - [ ] Emergency screen
+
+- [ ] Standardize form layouts and input styles
+- [ ] Implement consistent list item styles
+- [ ] Create reusable loading states
+- [ ] Standardize error and success messages
+
+### Low Priority
+- [ ] Add animations for state transitions
+- [ ] Implement dark mode support
+- [ ] Create component documentation
+- [ ] Add accessibility improvements
+
+## High Priority
+- [x] Update remaining screens to use new theme system
+  - [x] Pets screen
+  - [x] Expenses screen
+  - [x] Emergency screen
+  - [x] Shopping list screen
+  - [x] Add Event screen
+- [x] Implement consistent form validation patterns
+- [x] Add proper error handling and loading states
+- [x] Add user feedback with success/error messages for all CRUD operations
+- [x] Improve modal button layout for better usability
+- [x] Fix keyboard dismissal in expense form amount field
+- [x] Fix thin buttons in AddEvent and AddExpense components
+- [ ] Create component documentation
+
+## Medium Priority
+- [x] Implement custom date and time pickers
+  - [x] Create DatePicker component
+  - [x] Create TimePicker component
+  - [x] Create combined DateTimePicker component
+  - [x] Implement accessibility features
+  - [x] Create documentation
+  - [x] Integrate in AddEvent screen
+  - [x] Integrate in expenses screen
+  - [x] Integrate in calendar screen
+- [ ] Add accessibility features
+  - [ ] Screen reader support
+  - [ ] Keyboard navigation
+  - [ ] Color contrast improvements
+- [ ] Implement dark mode support
+- [ ] Add animations for state transitions
+- [ ] Create comprehensive design system documentation
+
+## Low Priority
+- [ ] Add unit tests for components
+- [ ] Implement E2E testing
+- [ ] Add performance monitoring
+- [ ] Create user onboarding flow
+- [ ] Add analytics tracking
+
+## Completed
+- [x] Create centralized theme system
+- [x] Implement base components (Button, InputField, Card)
+- [x] Update login screen with new theme system
+- [x] Update pets screen with new theme system
+- [x] Update expenses screen with new theme system
+- [x] Update emergency screen with new theme system
+- [x] Update shopping list screen with new theme system
+- [x] Update Add Event screen with new theme system
+- [x] Create custom date and time picker components
+- [x] Add consistent error handling in login form
+- [x] Implement proper keyboard handling
+- [x] Add loading states to buttons
+- [x] Enhance shadow styling for UI cards to create realistic 3D effects
+
+## Troubleshooting
+
+### AddEvent Component Issues
+- [ ] Debug event creation not working - investigate handleSave function:
+  - [x] **CRITICAL**: Fix database schema issue - Error: "Could not find the 'date' column of 'events' in the schema cache"
+    - [x] Verify events table column names match the expected fields in app code
+    - [x] Column names in database are 'event_date' and 'event_time' instead of 'date' and 'time'
+    - [x] Updated application code to use correct column names
+    - [ ] Refresh the Supabase schema cache if needed
+    - [x] Updated SQL definition in todo.md to match actual implementation
+  - [x] Fix real-time update issue in Calendar component:
+    - [x] Added better logging to track subscription updates
+    - [x] Verified subscription configuration with proper channel setup
+    - [x] Added explicit empty dependency array to useEffect
+    - [x] Enhanced subscription to handle INSERT/UPDATE/DELETE separately
+    - [x] Improved state updates to avoid unnecessary re-fetching
+    - [x] Added loading state to prevent multiple submissions
+    - [x] Implemented simplified real-time subscription approach that refetches all data
+    - [x] Fixed channel cleanup with proper removeChannel method
+    - [x] **Expo-specific fix:** Implemented useFocusEffect for automatic refresh on screen returns
+    - [x] **Expo-specific fix:** Modified navigation flow to prevent app reloads
+    - [x] **Refine UX**: Removed manual refresh button as automatic refresh is working well
+    - [x] **Refine UX**: Simplified success alert to only show "Go to Calendar" option
+  - [x] Fix editing and deleting events real-time updates:
+    - [x] Improve real-time subscription to explicitly handle all event types (INSERT, UPDATE, DELETE)
+    - [x] Add specific handlers for each operation type
+    - [x] Enhance handleDelete and handleSaveEdit functions
+    - [x] Add proper user feedback during edit/delete operations
+    - [x] Implement filtering by user_id in subscription for better security
+    - [x] Add unique channel names to prevent subscription conflicts
+    - [x] Implement fallback manual updates in case real-time updates fail
+    - [x] Add success confirmation alerts after editing or deleting events
+  - [ ] Check Supabase database connection and permissions
+  - [x] Fix missing try/catch block syntax - there appears to be a missing opening `try` in the error handler
+  - [ ] Verify user authentication is working properly
+  - [ ] Check database schema constraints to ensure all required fields are being provided
+  - [x] Add better error logging to identify specific failure points
+  - [ ] Ensure events table has proper RLS policies configured
+  - [ ] Validate that generateRepeats function is creating proper event objects
+  - [ ] Test event creation directly through Supabase client 

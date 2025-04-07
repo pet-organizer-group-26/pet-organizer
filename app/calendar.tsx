@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Calendar, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../lib/supabase';
 import * as Notifications from 'expo-notifications';
 import { format } from 'date-fns';
 import ModalSystem from './components/ModalSystem';
-import CustomDatePicker from './components/CustomDatePicker';
+import DatePicker from '../components/common/DatePicker';
+import TimePicker from '../components/common/TimePicker';
+import theme from '../constants/theme';
+import { useFocusEffect } from '@react-navigation/native';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -32,19 +34,20 @@ Notifications.setNotificationHandler({
 type Event = {
   id: string;
   title: string;    // e.g. "Vet Appointment"
-  date: string;     // e.g. "2025-02-15" (YYYY-MM-DD)
-  time: string;     // e.g. "14:30" (24-hour format)
+  event_date: string;     // e.g. "2025-02-15" (YYYY-MM-DD)
+  event_time: string;     // e.g. "14:30" (24-hour format)
   category: string;
   location?: string;
   repeat?: string;  // e.g. "Daily", "Weekly", "Forever", etc.
+  pet_id?: string;  // optional pet reference
 };
 
 const categoryColors: { [key: string]: string } = {
-  Vet: '#FF8FAB',
-  Grooming: '#C3A6FF',
-  Daily: '#FFCF81',
-  Training: '#e1e650',
-  Play: '#89CFF0',
+  Vet: theme.colors.error.light,
+  Grooming: theme.colors.secondary.light,
+  Daily: theme.colors.warning.light,
+  Training: theme.colors.success.light,
+  Play: theme.colors.primary.light,
 };
 
 // Convert "HH:MM" (24-hour) -> "h:mm AM/PM"
@@ -91,50 +94,46 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedEvent, setEditedEvent] = useState<Event | null>(null);
+  const [manualRefresh, setManualRefresh] = useState(0);
 
-  // For showing the DateTimePickers and category dropdown in edit mode
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  // For showing category dropdown in edit mode
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const router = useRouter();
+  
+  // Force refresh when coming back to this screen
+  const refreshEvents = () => {
+    setManualRefresh(prev => prev + 1);
+  };
+
+  // Use useFocusEffect to refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Calendar screen focused - refreshing events');
+      refreshEvents();
+      
+      return () => {
+        // cleanup if needed
+      };
+    }, [])
+  );
 
   useEffect(() => {
+    let subscription: ReturnType<typeof supabase.channel> | undefined;
+    
     const fetchEvents = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          console.error('No authenticated user found');
+          return;
+        }
 
-        // Subscribe to changes
-        const subscription = supabase
-          .channel('events_channel')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'events',
-              filter: `user_id=eq.${user.id}`,
-            },
-            async (payload) => {
-              // Fetch all events again when there's a change
-              const { data: events, error } = await supabase
-                .from('events')
-                .select('*')
-                .eq('user_id', user.id);
-              
-              if (error) {
-                console.error('Error fetching events:', error);
-                return;
-              }
-
-              setEvents(events);
-            }
-          )
-          .subscribe();
-
-        // Initial fetch
-        const { data: events, error } = await supabase
+        console.log('Setting up real-time subscription for user:', user.id);
+        
+        // First, get the initial events
+        console.log('Fetching initial events data');
+        const { data: eventsData, error } = await supabase
           .from('events')
           .select('*')
           .eq('user_id', user.id);
@@ -144,18 +143,70 @@ export default function CalendarPage() {
           return;
         }
 
-        setEvents(events);
-
-        return () => {
-          subscription.unsubscribe();
-        };
+        console.log('Initial events loaded:', eventsData?.length || 0);
+        setEvents(eventsData || []);
+        
+        // More comprehensive subscription setup that handles all event types explicitly
+        subscription = supabase
+          .channel('events-channel-' + new Date().getTime()) // Unique channel name to avoid conflicts
+          .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'events',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            console.log('REAL-TIME INSERT RECEIVED:', payload);
+            // For inserts, we can just add the new event to the existing array
+            if (payload.new) {
+              setEvents(current => [...current, payload.new as Event]);
+            }
+          })
+          .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'events',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            console.log('REAL-TIME UPDATE RECEIVED:', payload);
+            // For updates, replace the corresponding event in the array
+            if (payload.new) {
+              setEvents(current => 
+                current.map(evt => evt.id === (payload.new as Event).id ? (payload.new as Event) : evt)
+              );
+            }
+          })
+          .on('postgres_changes', { 
+            event: 'DELETE', 
+            schema: 'public', 
+            table: 'events',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            console.log('REAL-TIME DELETE RECEIVED:', payload);
+            // For deletes, remove the event from the array
+            if (payload.old) {
+              setEvents(current => 
+                current.filter(evt => evt.id !== (payload.old as Event).id)
+              );
+            }
+          })
+          .subscribe(status => {
+            console.log('Real-time subscription status:', status);
+          });
       } catch (error) {
         console.error('Error setting up events subscription:', error);
       }
     };
 
     fetchEvents();
-  }, []);
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('Cleaning up subscription');
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, [manualRefresh]); // Re-run when manual refresh is triggered
 
   const today = new Date().toLocaleDateString('en-CA');
 
@@ -175,11 +226,25 @@ export default function CalendarPage() {
 
             if (error) throw error;
 
+            // Close the modal after deleting
             setSelectedEvent(null);
             setIsEditing(false);
             setEditedEvent(null);
+            
+            // Fallback manual update in case real-time doesn't work
+            setEvents(current => current.filter(evt => evt.id !== eventId));
+            
+            // Show success message
+            Alert.alert(
+              'Success',
+              'Event deleted successfully',
+              [{ text: 'OK' }]
+            );
+            
+            console.log('Event deleted, waiting for real-time update');
           } catch (error) {
             console.error('Error deleting event:', error);
+            Alert.alert('Error', 'Failed to delete the event. Please try again.');
           }
         },
       },
@@ -189,13 +254,14 @@ export default function CalendarPage() {
   // Save edit function
   const handleSaveEdit = async () => {
     if (!editedEvent) return;
+    
     try {
       const { error } = await supabase
         .from('events')
         .update({
           title: editedEvent.title,
-          date: editedEvent.date,
-          time: editedEvent.time,
+          event_date: editedEvent.event_date,
+          event_time: editedEvent.event_time,
           category: editedEvent.category,
           location: editedEvent.location || '',
         })
@@ -203,12 +269,28 @@ export default function CalendarPage() {
 
       if (error) throw error;
 
+      // Fallback manual update in case real-time doesn't work
+      setEvents(current => 
+        current.map(evt => evt.id === editedEvent.id ? editedEvent : evt)
+      );
+      
+      // Update the selected event with the edited values
       setSelectedEvent(editedEvent);
       setIsEditing(false);
       setEditedEvent(null);
       setShowCategoryDropdown(false);
+      
+      // Show success message
+      Alert.alert(
+        'Success',
+        'Event updated successfully',
+        [{ text: 'OK' }]
+      );
+      
+      console.log('Event updated, waiting for real-time update');
     } catch (error) {
       console.error('Error updating event:', error);
+      Alert.alert('Error', 'Failed to update the event. Please try again.');
     }
   };
 
@@ -216,37 +298,37 @@ export default function CalendarPage() {
   // For events with repeat === "Forever", show them on every day on or after their start date.
   const dailyEvents = events.filter((event) => {
     if (event.repeat === 'Forever') {
-      const eventDate = parseDate(event.date);
+      const eventDate = parseDate(event.event_date);
       const selected = parseDate(selectedDate);
       return eventDate <= selected;
     }
-    return event.date === selectedDate;
-  }).sort((a, b) => a.time.localeCompare(b.time));
+    return event.event_date === selectedDate;
+  }).sort((a, b) => a.event_time.localeCompare(b.event_time));
 
   const renderEventDetails = () => (
     <View>
       <View style={styles.modalInfoRow}>
-        <Ionicons name="calendar-outline" size={24} color="#555" style={styles.icon} />
+        <Ionicons name="calendar-outline" size={24} color={theme.colors.text.secondary} style={styles.icon} />
         <Text style={styles.modalInfoText}>
-          {selectedEvent && formatDateString(selectedEvent.date)}
+          {selectedEvent && formatDateString(selectedEvent.event_date)}
         </Text>
       </View>
       <View style={styles.modalInfoRow}>
-        <Ionicons name="time-outline" size={24} color="#555" style={styles.icon} />
+        <Ionicons name="time-outline" size={24} color={theme.colors.text.secondary} style={styles.icon} />
         <Text style={styles.modalInfoText}>
-          {selectedEvent && formatTime12(selectedEvent.time)}
+          {selectedEvent && formatTime12(selectedEvent.event_time)}
         </Text>
       </View>
       {selectedEvent && ['Vet', 'Grooming', 'Training'].includes(selectedEvent.category) &&
         selectedEvent.location && (
           <View style={styles.modalInfoRow}>
-            <Ionicons name="location-outline" size={24} color="#555" style={styles.icon} />
+            <Ionicons name="location-outline" size={24} color={theme.colors.text.secondary} style={styles.icon} />
             <Text style={styles.modalInfoText}>{selectedEvent.location}</Text>
           </View>
         )}
       {selectedEvent && selectedEvent.repeat && selectedEvent.repeat !== 'Never' && (
         <View style={styles.repeatContainer}>
-          <Ionicons name="repeat" size={14} color="#00796b" style={{ marginRight: 4 }} />
+          <Ionicons name="repeat" size={14} color={theme.colors.primary.main} style={{ marginRight: 4 }} />
           <Text style={styles.repeatLabel}>{selectedEvent.repeat}</Text>
         </View>
       )}
@@ -262,21 +344,31 @@ export default function CalendarPage() {
         onChangeText={(text) => setEditedEvent(prev => ({ ...prev!, title: text }))}
       />
       
-      <CustomDatePicker
-        label="Date"
-        value={editedEvent?.date ? new Date(editedEvent.date) : new Date()}
-        onChange={(date) => setEditedEvent(prev => ({ ...prev!, date: date.toISOString() }))}
-        mode="date"
+      <DatePicker
+        label="Event Date"
+        value={editedEvent?.event_date ? new Date(editedEvent.event_date) : new Date()}
+        onChange={(date) => {
+          setEditedEvent(prev => ({ 
+            ...prev!, 
+            event_date: format(date, 'yyyy-MM-dd')
+          }));
+        }}
+        displayFormat="medium"
+        minDate={new Date(new Date().setFullYear(new Date().getFullYear() - 1))} 
+        maxDate={new Date(new Date().setFullYear(new Date().getFullYear() + 5))}
       />
 
-      <CustomDatePicker
-        label="Time"
-        value={editedEvent?.time ? new Date(`2000-01-01T${editedEvent.time}`) : new Date()}
-        onChange={(date) => setEditedEvent(prev => ({ 
-          ...prev!, 
-          time: format(date, 'HH:mm') 
-        }))}
-        mode="time"
+      <TimePicker
+        label="Event Time"
+        value={editedEvent?.event_time ? parseTimeString(editedEvent.event_time) : new Date()}
+        onChange={(time) => {
+          setEditedEvent(prev => ({ 
+            ...prev!, 
+            event_time: format(time, 'HH:mm') 
+          }));
+        }}
+        format="12h"
+        minuteInterval={5}
       />
 
       <TouchableOpacity
@@ -323,14 +415,22 @@ export default function CalendarPage() {
         onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
         markedDates={{
           ...events.reduce((acc, event) => {
-            acc[event.date] = { marked: true, dotColor: '#00796b' };
+            acc[event.event_date] = { marked: true, dotColor: theme.colors.primary.main };
             return acc;
           }, {} as Record<string, { marked: boolean; dotColor: string }>),
           [selectedDate]: {
             selected: true,
-            selectedColor: '#d3d3d3',
-            selectedTextColor: '#000',
+            selectedColor: theme.colors.background.paper,
+            selectedTextColor: theme.colors.text.primary,
           },
+        }}
+        theme={{
+          todayTextColor: theme.colors.primary.main,
+          arrowColor: theme.colors.primary.main,
+          monthTextColor: theme.colors.text.primary,
+          textMonthFontFamily: theme.typography.fontFamily.bold,
+          textDayFontFamily: theme.typography.fontFamily.regular,
+          textDayHeaderFontFamily: theme.typography.fontFamily.medium,
         }}
       />
 
@@ -373,16 +473,23 @@ export default function CalendarPage() {
               </View>
               {item.repeat && item.repeat !== 'Never' && (
                 <View style={styles.repeatContainer}>
-                  <Ionicons name="repeat" size={14} color="#00796b" style={{ marginRight: 4 }} />
+                  <Ionicons name="repeat" size={14} color={theme.colors.primary.main} style={{ marginRight: 4 }} />
                   <Text style={styles.repeatLabel}>{item.repeat}</Text>
                 </View>
               )}
               <Text style={styles.cardText}>
-                {formatTime12(item.time)}
+                {formatTime12(item.event_time)}
                 {item.location ? ` • ${item.location}` : ''}
               </Text>
             </View>
           </TouchableOpacity>
+        )}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <Ionicons name="calendar-outline" size={60} color={theme.colors.primary.light} />
+            <Text style={styles.emptyStateText}>No events for this day</Text>
+            <Text style={styles.emptyStateSubtext}>Tap the + button to add an event</Text>
+          </View>
         )}
       />
 
@@ -449,125 +556,155 @@ export default function CalendarPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background.default,
+    padding: theme.spacing.md,
+  },
   calendar: {
-    marginBottom: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: theme.spacing.md,
   },
   eventHeader: {
-    backgroundColor: '#f4f4f4',
-    padding: 12,
-    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: theme.spacing.sm,
   },
-  subtitle: { fontSize: 18, fontWeight: '600', textAlign: 'center' },
+  subtitle: {
+    fontSize: theme.typography.fontSize.lg,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    marginVertical: theme.spacing.sm,
+  },
   card: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
+    backgroundColor: theme.colors.background.paper,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
   },
   eventHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  cardText: { fontSize: 14, color: '#555', marginTop: 5 },
+  cardTitle: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    flex: 1,
+  },
   categoryTag: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs / 2,
+    borderRadius: theme.borderRadius.xs,
+    marginLeft: theme.spacing.sm,
   },
-  categoryText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
-  addButton: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#00796b',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+  categoryText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: '#fff',
   },
-  modalInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    width: '100%',
-  },
-  icon: {
-    marginRight: 12,
-  },
-  modalInfoText: {
-    fontSize: 16,
-    color: '#555',
+  cardText: {
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
   },
   repeatContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e8f5e9',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: theme.spacing.xs,
   },
   repeatLabel: {
-    fontSize: 14,
-    color: '#00796b',
-    fontWeight: '500',
+    fontSize: theme.typography.fontSize.xs,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.primary.main,
+  },
+  addButton: {
+    position: 'absolute',
+    right: theme.spacing.lg,
+    bottom: theme.spacing.lg,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: theme.colors.primary.main,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.xl,
+    marginTop: theme.spacing.xl,
+  },
+  emptyStateText: {
+    fontSize: theme.typography.fontSize.lg,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.md,
+  },
+  emptyStateSubtext: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
+  },
+  modalInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  icon: {
+    marginRight: theme.spacing.sm,
+  },
+  modalInfoText: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
   },
   formField: {
-    backgroundColor: '#f5f5f5',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-    fontSize: 16,
-    width: '100%',
+    borderWidth: 1,
+    borderColor: theme.colors.divider,
+    borderRadius: theme.borderRadius.sm,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
+    backgroundColor: theme.colors.background.paper,
   },
   fieldValue: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
   },
   dropdown: {
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    marginTop: -8,
-    marginBottom: 12,
-    maxHeight: 200,
-    overflow: 'scroll',
+    borderColor: theme.colors.divider,
+    borderRadius: theme.borderRadius.sm,
+    marginTop: -theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.background.paper,
+    maxHeight: 150,
   },
   dropdownItem: {
-    padding: 12,
+    padding: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: theme.colors.divider,
   },
   dropdownItemText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.primary,
   },
 });

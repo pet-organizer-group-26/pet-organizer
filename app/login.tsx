@@ -3,13 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   Animated,
-  Dimensions,
   SafeAreaView,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,6 +16,10 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { Button } from '../components/common/Button';
+import { InputField } from '../components/common/InputField';
+import { Card } from '../components/common/Card';
+import theme from '../constants/theme';
 
 // Make sure to register for redirect URI
 WebBrowser.maybeCompleteAuthSession();
@@ -162,7 +164,7 @@ export default function LoginScreen() {
           ]}
         >
           <View style={styles.logoIconContainer}>
-            <Ionicons name="paw" size={80} color="#00796b" />
+            <Ionicons name="paw" size={80} color={theme.colors.primary.main} />
           </View>
           <Text style={styles.title}>FeedMi</Text>
           <Text style={styles.subtitle}>Your Pet Companion</Text>
@@ -177,93 +179,81 @@ export default function LoginScreen() {
             },
           ]}
         >
-          <View style={styles.inputWrapper}>
-            <Ionicons name="mail-outline" size={22} color="#00796b" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, emailError && styles.inputError]}
-              placeholder="Email"
-              placeholderTextColor="#aaa"
-              keyboardType="email-address"
-              autoCapitalize="none"
+          <Card variant="elevated" style={styles.card}>
+            <InputField
+              label="Email"
+              placeholder="Enter your email"
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
                 setEmailError('');
               }}
+              error={emailError}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leftIcon={<Ionicons name="mail-outline" size={22} color={theme.colors.primary.main} />}
             />
-          </View>
-          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
-          <View style={styles.inputWrapper}>
-            <Ionicons name="lock-closed-outline" size={22} color="#00796b" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, passwordError && styles.inputError]}
-              placeholder="Password"
-              placeholderTextColor="#aaa"
-              secureTextEntry={!isPasswordVisible}
+            <InputField
+              label="Password"
+              placeholder="Enter your password"
               value={password}
               onChangeText={(text) => {
                 setPassword(text);
                 setPasswordError('');
               }}
+              error={passwordError}
+              secureTextEntry={!isPasswordVisible}
+              rightIcon={
+                <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+                  <Ionicons
+                    name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+                    size={22}
+                    color={theme.colors.primary.main}
+                  />
+                </TouchableOpacity>
+              }
+              leftIcon={<Ionicons name="lock-closed-outline" size={22} color={theme.colors.primary.main} />}
             />
-            <TouchableOpacity
-              onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-              style={styles.visibilityIcon}
-            >
-              <Ionicons
-                name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
-                size={22}
-                color="#00796b"
+
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+              <Button
+                title="LOG IN"
+                onPress={handleLogin}
+                variant="primary"
+                size="large"
+                loading={isLoading}
+                style={styles.loginButton}
               />
-            </TouchableOpacity>
-          </View>
-          {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            </Animated.View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
+            <View style={styles.orContainer}>
+              <View style={styles.divider} />
+              <Text style={styles.orText}>OR</Text>
+              <View style={styles.divider} />
+            </View>
 
-          <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={handleLogin}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#00a99e', '#00796b']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.gradientButton}
-              >
-                <Text style={styles.buttonText}>LOG IN</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
+            <Button
+              title="Sign in with Google"
+              onPress={handleGoogleLogin}
+              variant="outline"
+              size="large"
+              leftIcon={<Ionicons name="logo-google" size={22} color="#EA4335" />}
+              style={styles.googleButton}
+            />
 
-          <View style={styles.orContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.orText}>OR</Text>
-            <View style={styles.divider} />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.googleButton} 
-            onPress={handleGoogleLogin}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="logo-google" size={22} color="#EA4335" style={styles.googleIcon} />
-            <Text style={styles.googleButtonText}>Sign in with Google</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.googleButton, styles.guestButton]} 
-            onPress={handleGuestAccess}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="person-outline" size={22} color="#666" style={styles.googleIcon} />
-            <Text style={styles.googleButtonText}>Continue as Guest</Text>
-          </TouchableOpacity>
+            <Button
+              title="Continue as Guest"
+              onPress={handleGuestAccess}
+              variant="text"
+              size="large"
+              style={styles.guestButton}
+            />
+          </Card>
         </Animated.View>
 
         <View style={styles.signupContainer}>
@@ -277,165 +267,91 @@ export default function LoginScreen() {
   );
 }
 
-const { width, height } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background.default,
   },
   container: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: theme.spacing.lg,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: theme.spacing.xl,
   },
   logoIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(0, 121, 107, 0.1)',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: theme.colors.primary.light,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: theme.spacing.md,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#00796b',
-    textAlign: 'center',
+    fontSize: theme.typography.fontSize.xxl,
+    fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#555',
-    textAlign: 'center',
-    marginTop: 5,
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
   },
   formContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  inputIcon: {
-    paddingHorizontal: 12,
-  },
-  input: {
     flex: 1,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: '#333',
   },
-  inputError: {
-    borderColor: '#ff6b6b',
-  },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 12,
-    marginTop: -12,
-    marginBottom: 12,
-    marginLeft: 12,
-  },
-  visibilityIcon: {
-    paddingHorizontal: 12,
+  card: {
+    padding: theme.spacing.lg,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
   },
   forgotPasswordText: {
-    color: '#00796b',
-    fontWeight: '600',
+    color: theme.colors.primary.main,
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   loginButton: {
-    borderRadius: 25,
-    overflow: 'hidden',
-    elevation: 5,
-    shadowColor: '#00796b',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  gradientButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderRadius: 25,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    marginBottom: theme.spacing.lg,
   },
   orContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginBottom: theme.spacing.lg,
   },
   divider: {
     flex: 1,
     height: 1,
-    backgroundColor: '#ddd',
+    backgroundColor: theme.colors.divider,
   },
   orText: {
-    color: '#777',
-    paddingHorizontal: 10,
-    fontWeight: '600',
+    marginHorizontal: theme.spacing.md,
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.fontSize.sm,
+    fontFamily: theme.typography.fontFamily.medium,
   },
   googleButton: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 25,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
+    marginBottom: theme.spacing.md,
   },
-  googleIcon: {
-    marginRight: 10,
-  },
-  googleButtonText: {
-    color: '#444',
-    fontSize: 16,
-    fontWeight: '500',
+  guestButton: {
+    marginBottom: theme.spacing.sm,
   },
   signupContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 30,
+    marginTop: theme.spacing.xl,
   },
   signupText: {
-    color: '#555',
-    fontSize: 16,
+    color: theme.colors.text.secondary,
+    fontSize: theme.typography.fontSize.md,
   },
   signupLink: {
-    color: '#00796b',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  guestButton: {
-    marginTop: 10,
-    backgroundColor: '#f5f5f5',
-    borderColor: '#ddd',
+    color: theme.colors.primary.main,
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.bold,
   },
 });

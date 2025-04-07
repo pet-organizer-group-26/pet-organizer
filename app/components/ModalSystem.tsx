@@ -280,6 +280,7 @@ const ModalSystem: React.FC<ModalSystemProps> = ({
                           : action.variant === 'danger'
                           ? colors.error
                           : colors.surface.secondary,
+                      width: '100%',
                     },
                   ]}
                   onPress={action.onPress}
@@ -353,18 +354,18 @@ const styles = StyleSheet.create({
     marginBottom: MODAL_TOKENS.spacing.md,
   },
   actions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: 'column',
     padding: MODAL_TOKENS.spacing.md,
     borderTopWidth: 1,
     gap: MODAL_TOKENS.spacing.sm,
   },
   actionButton: {
-    paddingVertical: MODAL_TOKENS.spacing.sm,
+    paddingVertical: MODAL_TOKENS.spacing.md,
     paddingHorizontal: MODAL_TOKENS.spacing.lg,
     borderRadius: MODAL_TOKENS.borderRadius.sm,
-    minWidth: 100,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
   },
   actionText: {
     fontSize: 16,
