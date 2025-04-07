@@ -7,7 +7,7 @@ import {
   TouchableOpacityProps,
   Platform,
 } from 'react-native';
-import theme from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 interface CardProps extends TouchableOpacityProps {
   children: React.ReactNode;
@@ -23,24 +23,30 @@ export const Card: React.FC<CardProps> = ({
   onPress,
   ...props
 }) => {
+  // Get current theme colors from context
+  const { colors, isDarkMode } = useTheme();
+  
+  // Create dynamic styles based on current theme
+  const dynamicStyles = createStyles(colors, isDarkMode);
+
   const getCardStyles = (): ViewStyle[] => {
-    const baseStyles: ViewStyle[] = [styles.card];
+    const baseStyles: ViewStyle[] = [dynamicStyles.card];
 
     switch (variant) {
       case 'elevated':
-        baseStyles.push(styles.elevated as ViewStyle);
+        baseStyles.push(dynamicStyles.elevated as ViewStyle);
         break;
       case 'outlined':
-        baseStyles.push(styles.outlined as ViewStyle);
+        baseStyles.push(dynamicStyles.outlined as ViewStyle);
         break;
       case 'flat':
-        baseStyles.push(styles.flat as ViewStyle);
+        baseStyles.push(dynamicStyles.flat as ViewStyle);
         break;
       case 'layered':
-        baseStyles.push(styles.layered as ViewStyle);
+        baseStyles.push(dynamicStyles.layered as ViewStyle);
         break;
       case 'floating':
-        baseStyles.push(styles.floating as ViewStyle);
+        baseStyles.push(dynamicStyles.floating as ViewStyle);
         break;
     }
 
@@ -61,58 +67,71 @@ export const Card: React.FC<CardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+// Create dynamic styles based on theme
+const createStyles = (colors: any, isDarkMode: boolean) => StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.background.default,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    margin: theme.spacing.xs,
+    backgroundColor: colors.background.default,
+    borderRadius: 12, // theme.borderRadius.md
+    padding: 16, // theme.spacing.md
+    margin: 4, // theme.spacing.xs
   },
   elevated: {
-    ...theme.shadows.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: isDarkMode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.6)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: isDarkMode ? 0.25 : 0.18,
+        shadowRadius: 3.0,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
     // Add some subtle border for better definition
     borderWidth: Platform.OS === 'ios' ? 0 : 0.5,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
   },
   outlined: {
     borderWidth: 1,
-    borderColor: theme.colors.divider,
+    borderColor: colors.divider,
   },
   flat: {
-    backgroundColor: theme.colors.background.paper,
+    backgroundColor: colors.background.paper,
   },
   layered: {
-    ...theme.shadows.layered,
-    // For iOS, create layered shadow effect with dual shadows
-    ...(Platform.OS === 'ios' ? {
-      shadowColor: 'rgba(0,0,0,0.5)',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 3.5,
-      // Use backgroundColor with slight transparency for softer edges
-      backgroundColor: 'rgba(255,255,255,0.98)',
-    } : {
-      // For Android, use a subtle border to enhance the elevation effect
-      borderWidth: 0.5,
-      borderColor: 'rgba(0,0,0,0.03)',
+    ...Platform.select({
+      ios: {
+        shadowColor: isDarkMode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.8)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: isDarkMode ? 0.25 : 0.15,
+        shadowRadius: 3.5,
+        // Use backgroundColor with slight transparency for softer edges
+        backgroundColor: isDarkMode ? 'rgba(30,30,30,0.98)' : 'rgba(255,255,255,0.98)',
+      },
+      android: {
+        elevation: 6,
+        // For Android, use a subtle border to enhance the elevation effect
+        borderWidth: 0.5,
+        borderColor: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+      },
     }),
   },
   floating: {
-    ...theme.shadows.floating,
-    transform: [{ translateY: -1 }], // Slight lift effect
-    margin: theme.spacing.sm, // Add more space for the shadow to be visible
-    // For iOS, create a more pronounced floating effect
-    ...(Platform.OS === 'ios' ? {
-      shadowColor: 'rgba(0,0,0,0.7)',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.22,
-      shadowRadius: 7.0,
-      backgroundColor: 'rgba(255,255,255,0.99)',
-    } : {
-      // For Android, use a subtle border to enhance the elevation effect
-      elevation: 10,
-      borderWidth: 0.5,
-      borderColor: 'rgba(255,255,255,0.5)',
+    ...Platform.select({
+      ios: {
+        shadowColor: isDarkMode ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.7)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: isDarkMode ? 0.35 : 0.22,
+        shadowRadius: 7.0,
+        backgroundColor: isDarkMode ? 'rgba(30,30,30,0.99)' : 'rgba(255,255,255,0.99)',
+      },
+      android: {
+        elevation: 10,
+        borderWidth: 0.5,
+        borderColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.5)',
+      },
     }),
+    transform: [{ translateY: -1 }], // Slight lift effect
+    margin: 8, // theme.spacing.sm - Add more space for the shadow to be visible
   },
 }); 

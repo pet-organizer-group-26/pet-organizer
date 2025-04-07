@@ -107,7 +107,8 @@
    - [x] Calendar component
    - [ ] Pets component
    - [ ] Shopping List component
-   - [ ] Expenses component
+   - [x] Expenses component
+   - [x] Home component
 
 ## UI Improvements
 
@@ -172,6 +173,12 @@
   - [x] Integrate in AddEvent screen
   - [x] Integrate in expenses screen
   - [x] Integrate in calendar screen
+- [x] Create Settings page with:
+  - [x] Account management section
+  - [x] Appearance preferences (dark mode option)
+  - [x] Notification preferences
+  - [x] Support options
+  - [x] Account deletion option
 - [ ] Add accessibility features
   - [ ] Screen reader support
   - [ ] Keyboard navigation
@@ -201,6 +208,9 @@
 - [x] Implement proper keyboard handling
 - [x] Add loading states to buttons
 - [x] Enhance shadow styling for UI cards to create realistic 3D effects
+- [x] Implement real-time data on Home screen
+- [x] Implement real-time data on Expenses screen
+- [x] Create expenses database table with proper RLS
 
 ## Troubleshooting
 
@@ -242,3 +252,58 @@
   - [ ] Ensure events table has proper RLS policies configured
   - [ ] Validate that generateRepeats function is creating proper event objects
   - [ ] Test event creation directly through Supabase client 
+
+### TypeScript Fixes
+- [x] Fix TypeScript errors in components:
+  - [x] Fix property 'toString()' error on 'never' type by using String() conversion
+  - [x] Fix Button components using incorrect props (title vs children)
+  - [x] Fix InputField component using incorrect icon props
+  - [x] Fix DatePicker props (value/onChange vs date/onDateChange)
+  - [x] Fix import statements for DatePicker component
+  - [x] Add proper type annotation for date parameter
+  - [x] Addressed errors in the expenses.tsx file that prevented clean TypeScript compilation
+
+# Dark Mode Implementation - Remaining Tasks
+
+## High Priority
+
+- [ ] Update TimePicker component to use ThemeContext
+- [ ] Update Calendar views with dark mode support
+- [ ] Apply theming to Pet cards and pet detail screens
+- [ ] Ensure AddEvent screen uses theme-aware styling
+- [ ] Update emergency contact screens with theme support
+- [ ] Test theme persistence across app restarts
+- [ ] Test system theme sync on device theme change
+
+## Medium Priority
+
+- [ ] Add theme support to charts and data visualizations in Expenses
+- [ ] Ensure all modals and popups follow theme settings
+- [ ] Create dark mode versions of any app illustrations or graphics
+- [ ] Add transition animation when switching themes
+- [ ] Optimize theme switch performance (minimize re-renders)
+- [ ] Add theme presets for custom color schemes beyond light/dark
+
+## Low Priority
+
+- [ ] Create theme documentation for developers
+- [ ] Add theme preview in settings
+- [ ] Consider scheduled theme changes (auto dark mode at night)
+- [ ] Add high contrast theme option for accessibility
+- [ ] Review and improve a11y features for both themes
+- [ ] Implement themed splash screen
+
+## Testing 
+
+- [ ] Test on various Android devices
+- [ ] Test on various iOS devices
+- [ ] Test with VoiceOver and TalkBack screen readers
+- [ ] Verify color contrast meets WCAG AA guidelines in both themes
+- [ ] Test theme persistence after app updates
+
+## Refactoring
+
+- [ ] Review hardcoded colors in remaining components
+- [ ] Standardize shadow implementation across platforms
+- [ ] Extract common themed styles into reusable hooks/utilities
+- [ ] Consider using React.memo for performance-critical components 

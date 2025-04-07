@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import theme from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 export interface DatePickerProps {
   /**
@@ -91,6 +91,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const [date, setDate] = useState<Date>(value || new Date());
   const [showPicker, setShowPicker] = useState<boolean>(false);
   const [isScreenReaderEnabled, setIsScreenReaderEnabled] = useState<boolean>(false);
+  
+  // Get current theme
+  const { colors, isDarkMode } = useTheme();
+  
+  // Create dynamic styles based on current theme
+  const styles = createStyles(colors, isDarkMode);
   
   useEffect(() => {
     // Check if screen reader is enabled for accessibility
@@ -187,8 +193,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               minimumDate={minDate}
               maximumDate={maxDate}
               style={styles.iosPicker}
-              textColor={theme.colors.text.primary}
-              accentColor={theme.colors.primary.main}
+              textColor={colors.text.primary}
+              accentColor={colors.primary.main}
               accessibilityLabel="Date picker"
             />
           </View>
@@ -221,7 +227,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <Ionicons
           name="calendar-outline"
           size={20}
-          color={disabled ? theme.colors.text.disabled : theme.colors.primary.main}
+          color={disabled ? colors.text.disabled : colors.primary.main}
           style={styles.icon}
         />
         <Text
@@ -236,7 +242,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <Ionicons
           name="chevron-down-outline"
           size={20}
-          color={disabled ? theme.colors.text.disabled : theme.colors.text.secondary}
+          color={disabled ? colors.text.disabled : colors.text.secondary}
         />
       </TouchableOpacity>
       
@@ -249,113 +255,110 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       {/* Render different pickers based on platform */}
       {Platform.OS === 'ios' ? (
         renderIOSPicker()
-      ) : (
-        showPicker && (
-          <DateTimePicker
-            testID={testID}
-            value={date}
-            mode="date"
-            display="default"
-            onChange={handleDateChange}
-            minimumDate={minDate}
-            maximumDate={maxDate}
-            accessibilityLabel="Date picker"
-          />
-        )
+      ) : showPicker && (
+        <DateTimePicker
+          testID={testID}
+          value={date}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
+          minimumDate={minDate}
+          maximumDate={maxDate}
+          accessibilityLabel="Date picker"
+        />
       )}
     </View>
   );
 };
 
-const { width } = Dimensions.get('window');
-
-const styles = StyleSheet.create({
+// Create dynamic styles based on theme
+const createStyles = (colors: any, isDarkMode: boolean) => StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 16, // theme.spacing.md
   },
   label: {
-    fontSize: theme.typography.fontSize.md,
-    fontFamily: theme.typography.fontFamily.medium,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    fontSize: 14, // theme.typography.fontSize.sm
+    color: colors.text.primary,
+    marginBottom: 4, // theme.spacing.xs
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
     borderWidth: 1,
-    borderColor: theme.colors.divider,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.background.paper,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    height: 56,
+    borderColor: colors.divider,
+    borderRadius: 8, // theme.borderRadius.sm
+    backgroundColor: colors.background.default,
   },
   inputError: {
-    borderColor: theme.colors.error.main,
+    borderColor: colors.error.main,
   },
   inputDisabled: {
-    backgroundColor: theme.colors.background.paper,
-    opacity: 0.7,
+    backgroundColor: isDarkMode ? 'rgba(30, 30, 30, 0.5)' : 'rgba(0, 0, 0, 0.05)',
+    borderColor: colors.divider,
   },
   icon: {
-    marginRight: theme.spacing.sm,
+    marginRight: 8, // theme.spacing.sm
   },
   dateText: {
     flex: 1,
-    fontSize: theme.typography.fontSize.md,
-    fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.text.primary,
+    fontSize: 16, // theme.typography.fontSize.md
+    color: colors.text.primary,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   textDisabled: {
-    color: theme.colors.text.disabled,
+    color: colors.text.disabled,
   },
   placeholder: {
-    color: theme.colors.text.secondary,
+    color: colors.text.secondary,
   },
   errorText: {
-    fontSize: theme.typography.fontSize.sm,
-    fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.error.main,
-    marginTop: theme.spacing.xs,
+    fontSize: 12, // theme.typography.fontSize.xs
+    color: colors.error.main,
+    marginTop: 4, // theme.spacing.xs
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  // Modal styles for iOS
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: theme.colors.background.default,
-    borderTopLeftRadius: theme.borderRadius.md,
-    borderTopRightRadius: theme.borderRadius.md,
-    paddingBottom: 20,
+    backgroundColor: colors.background.paper,
+    borderTopLeftRadius: 16, // theme.borderRadius.lg
+    borderTopRightRadius: 16, // theme.borderRadius.lg
+    paddingBottom: 24, // theme.spacing.lg
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.md,
+    paddingVertical: 12, // theme.spacing.sm
+    paddingHorizontal: 16, // theme.spacing.md
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.divider,
+    borderBottomColor: colors.divider,
   },
   modalTitle: {
-    fontSize: theme.typography.fontSize.lg,
-    fontFamily: theme.typography.fontFamily.medium,
-    color: theme.colors.text.primary,
+    fontSize: 18, // theme.typography.fontSize.lg
+    fontWeight: '500',
+    color: colors.text.primary,
   },
   modalCancelButton: {
-    fontSize: theme.typography.fontSize.md,
-    fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.text.secondary,
+    fontSize: 16, // theme.typography.fontSize.md
+    color: colors.text.secondary,
+    padding: 8, // theme.spacing.sm
   },
   modalDoneButton: {
-    fontSize: theme.typography.fontSize.md,
-    fontFamily: theme.typography.fontFamily.medium,
-    color: theme.colors.primary.main,
+    fontSize: 16, // theme.typography.fontSize.md
+    color: colors.primary.main,
+    fontWeight: '500',
+    padding: 8, // theme.spacing.sm
   },
   iosPicker: {
+    backgroundColor: colors.background.paper,
     height: 200,
-    width: width,
+    width: '100%',
   },
 });
 

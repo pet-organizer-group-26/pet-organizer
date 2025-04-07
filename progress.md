@@ -258,3 +258,117 @@
   - Updated Card component used in AddEvent screen to showcase new layered shadow effect
   - Refined shadow colors to use rgba values for better depth perception
   - This change significantly improves the visual hierarchy and tactile appearance of UI elements 
+
+## April 15, 2024
+- Implemented real-time data functionality on the Home page:
+  - Replaced mock data with live Supabase data for events and expenses
+  - Added proper type definitions to match database schema
+  - Implemented real-time subscriptions for live updates 
+  - Added useEffect and useFocusEffect for data fetching
+  - Improved error handling for database operations
+  - Enhanced event date and time formatting for better display
+  - Added fallback empty states when no data is available
+  - Implemented proper pulling of "Forever" repeating events
+  - Implemented date filtering and sorting for better display
+  - Added optimistic UI updates for smoother user experience
+  - Refactored refresh functionality to actually fetch fresh data
+
+- Implemented real-time data functionality on the Expenses page:
+  - Created SQL schema for expenses table with proper RLS policies
+  - Replaced mock data with live Supabase data
+  - Implemented full CRUD operations with database persistence
+  - Added optimistic UI updates for immediate feedback
+  - Implemented proper date formatting for better display
+  - Enhanced error handling with user-friendly error messages
+  - Added loading states during data operations
+  - Improved UI with better empty states and loading indicators
+
+- General improvements:
+  - Enhanced UI consistency across the application
+  - Improved code reusability with shared data fetching patterns
+  - Added better error handling throughout the application
+  - Implemented consistent date formatting across screens
+  - Enhanced type safety with proper TypeScript definitions
+  - Improved real-time subscription management with proper cleanup
+
+## April 15, 2024 (continued)
+- Fixed TypeScript errors in expenses component:
+  - Fixed property 'toString()' error on 'never' type by using String() conversion
+  - Updated Button components to use title prop instead of children content
+  - Fixed InputField component by using proper React nodes for leftIcon/rightIcon
+  - Updated DatePicker props to use the correct value and onChange props
+  - Added proper type annotation for date parameter
+  - Fixed DatePicker import to use named import
+  - These fixes resolved all TypeScript compiler errors in the expenses component
+
+## April 20, 2024
+- Implemented Settings page:
+  - Created a dedicated settings screen with multiple sections:
+    - Account management section with logout and password reset options
+    - Preferences section with toggles for dark mode and notifications
+    - Support section with help and about information
+    - Danger zone for account deletion
+  - Integrated with the existing theme system for consistent styling
+  - Added to drawer navigation for easy access
+  - Reused existing logout functionality from the drawer
+  - Implemented toggle switches for feature preferences
+  - Added proper error handling and user feedback for actions
+  - Set up placeholder functionality for future features (password reset, help/support)
+  - Used consistent icons and styling with the rest of the application 
+
+# Dark Mode Implementation Progress
+
+## Completed
+
+1. Created theme types and theme-specific color schemes
+   - Created light and dark color themes in constants/theme.ts
+   - Added ThemeMode type with 'light', 'dark', and 'system' options
+
+2. Implemented theme context system
+   - Created ThemeContext.tsx to manage theme state
+   - Added theme persistence using AsyncStorage
+   - Implemented system theme detection and synchronization
+
+3. Updated core components with theme support
+   - Card component now uses dynamic theming
+   - Button component now uses dynamic theming
+   - InputField component now uses dynamic theming
+   - DatePicker component now uses dynamic theming
+
+4. Integrated theme provider in app layout
+   - Updated app/_layout.tsx to wrap the application with ThemeProvider
+   - Ensured all navigation elements use theme colors
+
+5. Implemented theme settings UI
+   - Enhanced settings screen with theme selection options
+   - Added Light, Dark, and System theme options
+   - Created visual indicators for active theme
+
+## In Progress
+
+1. Testing dark mode across all application screens
+   - Ensuring all custom components properly handle theme changes
+   - Validating theme persistence across app restarts
+
+## To Do
+
+1. Add theme support to remaining components
+   - TimePicker component
+   - Calendar components
+   - Pet card components
+   - Any other custom components
+
+2. Theme-specific assets
+   - Consider adding dark-mode specific assets or icons where necessary
+
+3. Performance optimization
+   - Minimize theme re-renders
+   - Profile theme switching performance
+
+4. Accessibility improvements
+   - Ensure proper contrast ratios in both themes
+   - Add theme-specific accessibility adjustments if needed
+
+5. Documentation
+   - Document theming system for future development
+   - Add theme guidelines for new components 

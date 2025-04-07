@@ -7,8 +7,9 @@ import {
   ViewStyle,
   TextStyle,
   TextInputProps,
+  Platform,
 } from 'react-native';
-import theme from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 interface InputFieldProps extends TextInputProps {
   label?: string;
@@ -36,19 +37,25 @@ export const InputField: React.FC<InputFieldProps> = ({
   rightIcon,
   ...props
 }) => {
+  // Get current theme
+  const { colors } = useTheme();
+  
+  // Create dynamic styles based on current theme
+  const styles = createStyles(colors);
+
   const getInputStyles = (): TextStyle[] => {
-    const inputStyles: TextStyle[] = [componentStyles.input];
+    const inputStyles: TextStyle[] = [styles.input];
 
     if (error) {
-      inputStyles.push(componentStyles.inputError as TextStyle);
+      inputStyles.push(styles.inputError as TextStyle);
     }
 
     if (leftIcon) {
-      inputStyles.push(componentStyles.inputWithLeftIcon);
+      inputStyles.push(styles.inputWithLeftIcon);
     }
 
     if (rightIcon) {
-      inputStyles.push(componentStyles.inputWithRightIcon);
+      inputStyles.push(styles.inputWithRightIcon);
     }
 
     if (inputStyle) {
@@ -59,36 +66,36 @@ export const InputField: React.FC<InputFieldProps> = ({
   };
 
   return (
-    <View style={[componentStyles.container, containerStyle]}>
+    <View style={[styles.container, containerStyle]}>
       {label && (
-        <Text style={[componentStyles.label, labelStyle]}>
+        <Text style={[styles.label, labelStyle]}>
           {label}
         </Text>
       )}
-      <View style={componentStyles.inputContainer}>
+      <View style={styles.inputContainer}>
         {leftIcon && (
-          <View style={componentStyles.iconContainer}>
+          <View style={styles.iconContainer}>
             {leftIcon}
           </View>
         )}
         <TextInput
           style={getInputStyles()}
-          placeholderTextColor={theme.colors.text.disabled}
+          placeholderTextColor={colors.text.disabled}
           {...props}
         />
         {rightIcon && (
-          <View style={componentStyles.iconContainer}>
+          <View style={styles.iconContainer}>
             {rightIcon}
           </View>
         )}
       </View>
       {error && (
-        <Text style={[componentStyles.error, errorStyle]}>
+        <Text style={[styles.error, errorStyle]}>
           {error}
         </Text>
       )}
       {helperText && !error && (
-        <Text style={[componentStyles.helper, helperStyle]}>
+        <Text style={[styles.helper, helperStyle]}>
           {helperText}
         </Text>
       )}
@@ -96,31 +103,32 @@ export const InputField: React.FC<InputFieldProps> = ({
   );
 };
 
-const componentStyles = StyleSheet.create({
+// Create dynamic styles based on theme
+const createStyles = (colors: any) => StyleSheet.create({
   container: {
-    marginBottom: theme.spacing.md,
+    marginBottom: 16, // theme.spacing.md
   },
   label: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
-    fontFamily: theme.typography.fontFamily.medium,
+    fontSize: 14, // theme.typography.fontSize.sm
+    color: colors.text.primary,
+    marginBottom: 4, // theme.spacing.xs
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium', // theme.typography.fontFamily.medium
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.divider,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.background.default,
+    borderColor: colors.divider,
+    borderRadius: 8, // theme.borderRadius.sm
+    backgroundColor: colors.background.default,
   },
   input: {
     flex: 1,
     height: 40,
-    paddingHorizontal: theme.spacing.sm,
-    fontSize: theme.typography.fontSize.md,
-    color: theme.colors.text.primary,
-    fontFamily: theme.typography.fontFamily.regular,
+    paddingHorizontal: 8, // theme.spacing.sm
+    fontSize: 16, // theme.typography.fontSize.md
+    color: colors.text.primary,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto', // theme.typography.fontFamily.regular
   },
   inputWithLeftIcon: {
     paddingLeft: 0,
@@ -129,23 +137,23 @@ const componentStyles = StyleSheet.create({
     paddingRight: 0,
   },
   iconContainer: {
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: 8, // theme.spacing.sm
     justifyContent: 'center',
     alignItems: 'center',
   },
   inputError: {
-    borderColor: theme.colors.error.main,
+    borderColor: colors.error.main,
   },
   error: {
-    color: theme.colors.error.main,
-    fontSize: theme.typography.fontSize.sm,
-    marginTop: theme.spacing.xs,
-    fontFamily: theme.typography.fontFamily.regular,
+    color: colors.error.main,
+    fontSize: 14, // theme.typography.fontSize.sm
+    marginTop: 4, // theme.spacing.xs
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto', // theme.typography.fontFamily.regular
   },
   helper: {
-    color: theme.colors.text.secondary,
-    fontSize: theme.typography.fontSize.sm,
-    marginTop: theme.spacing.xs,
-    fontFamily: theme.typography.fontFamily.regular,
+    color: colors.text.secondary,
+    fontSize: 14, // theme.typography.fontSize.sm
+    marginTop: 4, // theme.spacing.xs
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto', // theme.typography.fontFamily.regular
   },
 }); 

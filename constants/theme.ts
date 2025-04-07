@@ -1,6 +1,10 @@
 import { Platform } from 'react-native';
 
-export const colors = {
+// Theme types
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+// Light theme colors
+export const lightColors = {
   primary: {
     main: '#00796b',
     light: '#00a99e',
@@ -39,6 +43,48 @@ export const colors = {
     dark: '#f57c00',
   },
   divider: '#e0e0e0',
+};
+
+// Dark theme colors
+export const darkColors = {
+  primary: {
+    main: '#00a99e',
+    light: '#4ebaaa',
+    dark: '#00796b',
+    contrastText: '#ffffff',
+  },
+  secondary: {
+    main: '#ff4081',
+    light: '#ff79b0',
+    dark: '#c60055',
+    contrastText: '#ffffff',
+  },
+  background: {
+    default: '#121212',
+    paper: '#1e1e1e',
+    dark: '#0a0a0a',
+  },
+  text: {
+    primary: '#ffffff',
+    secondary: '#b0b0b0',
+    disabled: '#666666',
+  },
+  error: {
+    main: '#f44336',
+    light: '#e57373',
+    dark: '#d32f2f',
+  },
+  success: {
+    main: '#4caf50',
+    light: '#81c784',
+    dark: '#388e3c',
+  },
+  warning: {
+    main: '#ff9800',
+    light: '#ffb74d',
+    dark: '#f57c00',
+  },
+  divider: '#333333',
 };
 
 export const typography = {
@@ -167,8 +213,13 @@ export const zIndex = {
   dropdown: 500,
 };
 
+// Default theme is light theme
+export const colors = lightColors;
+
 export default {
   colors,
+  lightColors,
+  darkColors,
   typography,
   spacing,
   borderRadius,

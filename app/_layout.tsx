@@ -7,18 +7,33 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DrawerContentScrollView } from '@react-navigation/drawer';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
 
 // Define which screens don't require authentication
 const publicScreens = ['login', 'signup'];
 
 // Define visible screens
-const visibleScreens = ['index', 'calendar', 'pets', 'shoppingList', 'expenses', 'emergency'];
+const visibleScreens = ['index', 'calendar', 'pets', 'shoppingList', 'expenses', 'emergency', 'settings'];
 
-export default function Layout() {
+// App layout with ThemeProvider wrapper
+export default function AppRoot() {
+  return (
+    <ThemeProvider>
+      <Layout />
+    </ThemeProvider>
+  );
+}
+
+// Main layout with theme-aware styling
+function Layout() {
   const router = useRouter();
   const segments = useSegments();
   const [isGuest, setIsGuest] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const { colors, isDarkMode } = useTheme();
+
+  // Update styles based on theme
+  const styles = createStyles(colors);
 
   useEffect(() => {
     // Check guest status
@@ -65,8 +80,11 @@ export default function Layout() {
 
   const CustomDrawerContent = (props: any) => {
     return (
-      <View style={{ flex: 1 }}>
-        <DrawerContentScrollView {...props}>
+      <View style={{ flex: 1, backgroundColor: colors.background.default }}>
+        <DrawerContentScrollView 
+          {...props} 
+          style={{ backgroundColor: colors.background.default }}
+        >
           {props.state.routeNames
             .filter((name: string) => visibleScreens.includes(name))
             .map((name: string) => {
@@ -83,7 +101,7 @@ export default function Layout() {
                   <Ionicons
                     name={getIconName(name)}
                     size={24}
-                    color={isFocused ? '#00796b' : '#666'}
+                    color={isFocused ? colors.primary.main : colors.text.secondary}
                   />
                   <Text
                     style={[
@@ -124,6 +142,8 @@ export default function Layout() {
         return 'wallet-outline';
       case 'emergency':
         return 'alert-circle-outline';
+      case 'settings':
+        return 'settings-outline';
       default:
         return 'list-outline';
     }
@@ -143,6 +163,8 @@ export default function Layout() {
         return 'Expenses';
       case 'emergency':
         return 'Emergency';
+      case 'settings':
+        return 'Settings';
       default:
         return routeName;
     }
@@ -152,15 +174,22 @@ export default function Layout() {
     <Drawer
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={{
-        headerStyle: { backgroundColor: '#ffffff', shadowColor: 'transparent' },
-        headerTintColor: '#00796b',
+        headerStyle: { 
+          backgroundColor: colors.background.default, 
+          shadowColor: 'transparent' 
+        },
+        headerTintColor: colors.primary.main,
         headerTitle: () => (
           <View style={styles.headerContainer}>
-            <Ionicons name="paw" size={24} color="#00796b" style={styles.headerIcon} />
+            <Ionicons name="paw" size={24} color={colors.primary.main} style={styles.headerIcon} />
             <Text style={styles.headerText}>FeedMi</Text>
           </View>
         ),
-        drawerActiveTintColor: '#00796b',
+        drawerActiveTintColor: colors.primary.main,
+        drawerInactiveTintColor: colors.text.secondary,
+        drawerStyle: {
+          backgroundColor: colors.background.default,
+        },
         drawerLabelStyle: { fontSize: 16 },
       }}
     >
@@ -219,6 +248,15 @@ export default function Layout() {
           ),
         }}
       />
+      <Drawer.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          drawerIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
+        }}
+      />
 
       {/* Hidden Screens */}
       <Drawer.Screen
@@ -235,7 +273,6 @@ export default function Layout() {
           drawerItemStyle: { height: 0 },
           drawerLabel: () => null,
           drawerIcon: () => null,
-          headerShown: false, // Hide header for login screen
         }}
       />
       <Drawer.Screen
@@ -244,14 +281,46 @@ export default function Layout() {
           drawerItemStyle: { height: 0 },
           drawerLabel: () => null,
           drawerIcon: () => null,
-          headerShown: false, // Hide header for signup screen
         }}
       />
     </Drawer>
   );
 }
 
-const styles = StyleSheet.create({
+// Create styles as a function to use dynamic theme colors
+const createStyles = (colors: any) => StyleSheet.create({
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 8,
+    marginHorizontal: 5,
+    marginVertical: 2,
+  },
+  drawerItemFocused: {
+    backgroundColor: colors.primary.light + '20', // 20% opacity
+  },
+  drawerLabel: {
+    marginLeft: 15,
+    fontSize: 16,
+    color: colors.text.primary,
+  },
+  drawerLabelFocused: {
+    color: colors.primary.main,
+    fontWeight: '500',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  logoutText: {
+    marginLeft: 15,
+    fontSize: 16,
+    color: '#ff4444',
+  },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,42 +329,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   headerText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#00796b',
-    letterSpacing: 1.2,
-  },
-  drawerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 8,
-    marginHorizontal: 8,
-    marginVertical: 4,
-  },
-  drawerItemFocused: {
-    backgroundColor: 'rgba(0, 121, 107, 0.1)',
-  },
-  drawerLabel: {
-    marginLeft: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  drawerLabelFocused: {
-    color: '#00796b',
-    fontWeight: '500',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  logoutText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: '#ff4444',
-    fontWeight: '500',
+    color: colors.primary.main,
   },
 });

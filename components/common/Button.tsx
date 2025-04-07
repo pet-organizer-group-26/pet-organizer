@@ -6,8 +6,9 @@ import {
   ViewStyle,
   TextStyle,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
-import theme from '../../constants/theme';
+import { useTheme } from '../../context/ThemeContext';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text';
 type ButtonSize = 'small' | 'medium' | 'large';
@@ -37,6 +38,12 @@ export const Button: React.FC<ButtonProps> = ({
   leftIcon,
   rightIcon,
 }) => {
+  // Get current theme
+  const { colors } = useTheme();
+  
+  // Create dynamic styles based on current theme
+  const styles = createStyles(colors);
+
   const getButtonStyles = (): ViewStyle[] => {
     const baseStyles: ViewStyle[] = [styles.button];
     
@@ -119,7 +126,7 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? theme.colors.primary.contrastText : theme.colors.primary.main}
+          color={variant === 'primary' ? colors.primary.contrastText : colors.primary.main}
           size={size === 'small' ? 'small' : 'small'}
         />
       ) : (
@@ -133,71 +140,72 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+// Create dynamic styles based on theme
+const createStyles = (colors: any) => StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
+    borderRadius: 12, // theme.borderRadius.md
+    paddingHorizontal: 16, // theme.spacing.md
   },
   primaryButton: {
-    backgroundColor: theme.colors.primary.main,
+    backgroundColor: colors.primary.main,
   },
   secondaryButton: {
-    backgroundColor: theme.colors.secondary.main,
+    backgroundColor: colors.secondary.main,
   },
   outlineButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: theme.colors.primary.main,
+    borderColor: colors.primary.main,
   },
   textButton: {
     backgroundColor: 'transparent',
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: 8, // theme.spacing.sm
   },
   smallButton: {
     height: 32,
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: 8, // theme.spacing.sm
   },
   mediumButton: {
     height: 40,
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 16, // theme.spacing.md
   },
   largeButton: {
     height: 48,
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: 24, // theme.spacing.lg
   },
   disabledButton: {
-    backgroundColor: theme.colors.text.disabled,
-    borderColor: theme.colors.text.disabled,
+    backgroundColor: colors.text.disabled,
+    borderColor: colors.text.disabled,
   },
   text: {
-    fontFamily: theme.typography.fontFamily.medium,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto-Medium', // theme.typography.fontFamily.medium
     textAlign: 'center',
   },
   primaryText: {
-    color: theme.colors.primary.contrastText,
+    color: colors.primary.contrastText,
   },
   secondaryText: {
-    color: theme.colors.secondary.contrastText,
+    color: colors.secondary.contrastText,
   },
   outlineText: {
-    color: theme.colors.primary.main,
+    color: colors.primary.main,
   },
   textButtonText: {
-    color: theme.colors.primary.main,
+    color: colors.primary.main,
   },
   smallText: {
-    fontSize: theme.typography.fontSize.sm,
+    fontSize: 14, // theme.typography.fontSize.sm
   },
   mediumText: {
-    fontSize: theme.typography.fontSize.md,
+    fontSize: 16, // theme.typography.fontSize.md
   },
   largeText: {
-    fontSize: theme.typography.fontSize.lg,
+    fontSize: 18, // theme.typography.fontSize.lg
   },
   disabledText: {
-    color: theme.colors.text.disabled,
+    color: colors.text.disabled,
   },
 }); 
