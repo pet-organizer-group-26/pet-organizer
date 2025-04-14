@@ -99,7 +99,6 @@ export default function ExpenseTracker() {
             table: 'expenses',
             filter: `user_id=eq.${user.id}`
           }, payload => {
-            console.log('REAL-TIME EXPENSE INSERT RECEIVED:', payload);
             if (payload.new) {
               // Add the new expense to the state
               const newExpense = payload.new as Expense;
@@ -115,7 +114,6 @@ export default function ExpenseTracker() {
             table: 'expenses',
             filter: `user_id=eq.${user.id}`
           }, payload => {
-            console.log('REAL-TIME EXPENSE UPDATE RECEIVED:', payload);
             if (payload.new) {
               // Update the existing expense in the state
               const updatedExpense = payload.new as Expense;
@@ -134,7 +132,6 @@ export default function ExpenseTracker() {
             table: 'expenses',
             filter: `user_id=eq.${user.id}`
           }, payload => {
-            console.log('REAL-TIME EXPENSE DELETE RECEIVED:', payload);
             if (payload.old) {
               // Remove the deleted expense from the state
               const deletedExpense = payload.old as Expense;
@@ -143,9 +140,7 @@ export default function ExpenseTracker() {
               );
             }
           })
-          .subscribe(status => {
-            console.log('Real-time subscription status:', status);
-          });
+          .subscribe();
       } catch (error) {
         console.error('Error setting up subscription:', error);
       }
@@ -155,7 +150,6 @@ export default function ExpenseTracker() {
 
     // Cleanup subscription on unmount
     return () => {
-      console.log('Cleaning up subscription');
       if (subscription) {
         supabase.removeChannel(subscription);
       }
@@ -205,15 +199,6 @@ export default function ExpenseTracker() {
 
       // Format the date for Supabase (YYYY-MM-DD)
       const dateString = formData.date.toISOString().split('T')[0];
-
-      // Debug info
-      console.log('Expense data being saved:', {
-        description: formData.description,
-        amount: parseFloat(formData.amount),
-        date: dateString,
-        category: formData.category,
-        user_id: user.id
-      });
 
       if (editingExpense) {
         // Update existing expense

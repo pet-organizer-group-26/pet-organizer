@@ -18,22 +18,7 @@ type Contact = {
 const contactTypes = ['Vet', 'Pet Sitter', 'Emergency Contact', 'Family', 'Friend', 'Other'];
 
 export default function EmergencyContacts() {
-  const [contacts, setContacts] = useState<Contact[]>([
-    {
-      id: '1',
-      name: 'Metro Animal Hospital',
-      phone: '(555) 123-4567',
-      type: 'Vet',
-      notes: '24/7 Emergency Services'
-    },
-    {
-      id: '2',
-      name: 'Sarah Johnson',
-      phone: '(555) 987-6543',
-      type: 'Pet Sitter',
-      notes: 'Available weekends'
-    }
-  ]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);

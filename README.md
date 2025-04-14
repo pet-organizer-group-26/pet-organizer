@@ -1,8 +1,25 @@
-# Welcome to your Expo app 👋
+# Pet Organizer
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Pet Organizer is a comprehensive mobile application built with Expo and React Native that helps pet owners manage all aspects of pet care.
 
-## Get started
+## Features
+
+- **Calendar Management**: Schedule and manage pet-related events with recurring options
+- **Pet Profiles**: Store important information about your pets
+- **Expense Tracking**: Track and categorize all pet-related expenses
+- **Shopping List**: Manage shopping lists for pet supplies
+- **Emergency Contacts**: Store important contact information for veterinarians and pet services
+
+## Tech Stack
+
+- Expo & React Native
+- TypeScript
+- Supabase for backend (authentication and database)
+- React Navigation for routing
+- Expo Notifications for reminders
+- Custom theming system
+
+## Getting Started
 
 1. Install dependencies
 
@@ -10,41 +27,49 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Start the development server
 
    ```bash
-    npx expo start
+   npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run on a device or emulator
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   # For Android
+   npm run android
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   # For iOS
+   npm run ios
+   ```
 
-## Get a fresh project
+## Development
 
-When you're ready, run:
+### Project Structure
 
-```bash
-npm run reset-project
-```
+- `/app`: Main application screens using Expo Router
+- `/components`: Reusable UI components
+- `/context`: React Context providers
+- `/constants`: Application constants and theme
+- `/hooks`: Custom React hooks
+- `/lib`: Utility functions and services
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Database Schema
 
-## Learn more
+The application uses Supabase as the backend database with the following primary tables:
 
-To learn more about developing your project with Expo, look at the following resources:
+- `events`: Calendar events and appointments
+- `pets`: Pet information and details
+- `expenses`: Pet-related expenses
+- `shopping_items`: Shopping list items
+- `emergency_contacts`: Important contact information
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Contributing
 
-## Join the community
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
 
-Join our community of developers creating universal apps.
+## License
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+This project is licensed under the MIT License.
