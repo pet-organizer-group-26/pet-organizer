@@ -161,6 +161,7 @@
 - [x] Improve modal button layout for better usability
 - [x] Fix keyboard dismissal in expense form amount field
 - [x] Fix thin buttons in AddEvent and AddExpense components
+- [x] Add delete functionality for all items that can be added (checklist completed, already implemented in all pages)
 - [ ] Create component documentation
 
 ## Medium Priority

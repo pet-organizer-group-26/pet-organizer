@@ -364,7 +364,6 @@ export default function ExpenseTracker() {
       <TouchableOpacity 
         style={styles.expenseContent}
         onPress={() => handleEdit(item)}
-        onLongPress={() => handleDelete(item.id)}
       >
         <View style={styles.expenseHeader}>
           <View style={styles.expenseDescriptionContainer}>
@@ -382,6 +381,12 @@ export default function ExpenseTracker() {
             <Text style={styles.expenseCategory}>{item.category}</Text>
           </View>
         </View>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id)}
+      >
+        <Ionicons name="trash-outline" size={20} color={theme.colors.error.main} />
       </TouchableOpacity>
     </Card>
   );
@@ -726,5 +731,17 @@ const styles = StyleSheet.create({
   },
   expenseContent: {
     flex: 1,
+    paddingRight: 40,
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    right: theme.spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: `${theme.colors.error.light}30`,
   },
 });

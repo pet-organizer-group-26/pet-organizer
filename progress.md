@@ -444,3 +444,28 @@
   - Removed debug info that was logging expense data before saving
   - This cleans up the code and makes it more production-ready
   - Ensures no debugging information is accidentally exposed to users 
+
+## May 2, 2024
+- Verified delete functionality across the application:
+  - Shopping List: Confirmed proper delete functionality through handleDelete function with user confirmation
+  - Pets: Confirmed delete functionality with deletePet function and user confirmation dialog
+  - Expenses: Verified delete functionality in handleDelete with Supabase integration and success alerts
+  - Emergency Contacts: Confirmed delete contacts functionality with confirmation dialog
+  - Calendar/Events: Verified event deletion functionality with proper database integration and alerts
+  - All components consistently implement:
+    - Confirmation dialogs before deletion to prevent accidental deletions
+    - Success messages after successful deletion
+    - Error handling for failed deletion operations
+    - Immediate UI updates after deletion (optimistic updates)
+    - Database synchronization for persistent changes
+  - This ensures all components that allow adding items also support deleting them 
+
+## May 5, 2024
+- Enhanced expense deletion functionality:
+  - Added a visible delete button to each expense item in the expense tracker
+  - Previously expenses could only be deleted via a long press gesture, which wasn't discoverable
+  - The new delete button uses a trash icon with a subtle error-colored background
+  - Positioned in the top-right corner of each expense card for easy access
+  - Maintains the same confirmation dialog and success message as before
+  - Improves discoverability of the delete functionality
+  - Provides a more consistent UI with other components that have visible delete buttons 
