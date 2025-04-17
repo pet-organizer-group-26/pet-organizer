@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 type Pet = {
   id: string;
   name: string;
-  type: string;
+  pet_type: string;
   image_url: string | null;
   birthdate?: string;
   breed?: string;
@@ -25,6 +25,7 @@ type Pet = {
   user_id?: string;
   created_at?: string;
   updated_at?: string;
+  type?: string;
 };
 
 export default function PetsScreen() {
@@ -247,7 +248,7 @@ export default function PetsScreen() {
 
   const editPet = (pet: Pet) => {
     setPetName(pet.name);
-    setPetType(pet.type);
+    setPetType(pet.pet_type);
     setPetImage(pet.image_url);
     setEditingPet(pet);
     setModalVisible(true);
@@ -278,21 +279,27 @@ export default function PetsScreen() {
         }
       }
 
+      // Create pet object with comprehensive data
+      const petData = {
+        name: petName,
+        pet_type: petType,
+        image_url: imageUrl,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Log the data being sent
+      console.log('Sending pet data to Supabase:', petData);
+
       if (editingPet) {
         // Update existing pet
         const { error } = await supabase
           .from('pets')
-          .update({
-            name: petName,
-            type: petType,
-            image_url: imageUrl,
-            updated_at: new Date().toISOString(),
-          })
+          .update(petData)
           .eq('id', editingPet.id);
 
         if (error) {
           console.error('Update pet error details:', JSON.stringify(error));
-          throw error;
+          throw new Error(`Failed to update pet: ${error.message}`);
         }
         
         // Fallback update in case real-time update fails
@@ -300,10 +307,7 @@ export default function PetsScreen() {
           pet.id === editingPet.id 
             ? {
                 ...editingPet,
-                name: petName,
-                type: petType,
-                image_url: imageUrl,
-                updated_at: new Date().toISOString()
+                ...petData
               } 
             : pet
         ));
@@ -319,18 +323,15 @@ export default function PetsScreen() {
         const { data, error } = await supabase
           .from('pets')
           .insert([{
-            name: petName,
-            type: petType,
-            image_url: imageUrl,
+            ...petData,
             user_id: user.id,
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
           }])
           .select();
 
         if (error) {
           console.error('Insert pet error details:', JSON.stringify(error));
-          throw error;
+          throw new Error(`Failed to save pet: ${error.message}`);
         }
 
         // Fallback update in case real-time update fails
@@ -356,7 +357,7 @@ export default function PetsScreen() {
       setModalVisible(false);
     } catch (error) {
       console.error('Error saving pet:', error);
-      Alert.alert('Error', 'Failed to save pet. Please try again.');
+      Alert.alert('Error', `Failed to save pet: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -420,37 +421,43 @@ export default function PetsScreen() {
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
           {pets.length > 0 ? (
-            pets.map((pet) => (
-              <Card key={pet.id} variant="layered" style={styles.petPanel}>
-                <TouchableOpacity onPress={() => viewPetDetails(pet)}>
-                  {pet.image_url && (
-                    <Image source={{ uri: pet.image_url }} style={styles.petImage} />
-                  )}
-                  <View style={styles.petInfo}>
-                    <Text style={styles.label}>Name:</Text>
-                    <Text style={styles.petName}>{pet.name}</Text>
-                  </View>
-                  <View style={styles.petInfo}>
-                    <Text style={styles.label}>Type:</Text>
-                    <Text style={styles.petType}>{pet.type}</Text>
-                  </View>
-                </TouchableOpacity>
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity 
-                    style={styles.editButton}
-                    onPress={() => editPet(pet)}
-                  >
-                    <Ionicons name="pencil" size={20} color={theme.colors.primary.main} />
+            pets.map((pet) => {
+              // Ensure pet_type is available (fallback to type if needed)
+              if (!pet.pet_type && pet.type) {
+                pet.pet_type = pet.type;
+              }
+              return (
+                <Card key={pet.id} variant="layered" style={styles.petPanel}>
+                  <TouchableOpacity onPress={() => viewPetDetails(pet)}>
+                    {pet.image_url && (
+                      <Image source={{ uri: pet.image_url }} style={styles.petImage} />
+                    )}
+                    <View style={styles.petInfo}>
+                      <Text style={styles.label}>Name:</Text>
+                      <Text style={styles.petName}>{pet.name}</Text>
+                    </View>
+                    <View style={styles.petInfo}>
+                      <Text style={styles.label}>Type:</Text>
+                      <Text style={styles.petType}>{pet.pet_type}</Text>
+                    </View>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.deleteButton}
-                    onPress={() => deletePet(pet)}
-                  >
-                    <Ionicons name="trash-outline" size={20} color={theme.colors.error.main} />
-                  </TouchableOpacity>
-                </View>
-              </Card>
-            ))
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity 
+                      style={styles.editButton}
+                      onPress={() => editPet(pet)}
+                    >
+                      <Ionicons name="pencil" size={20} color={theme.colors.primary.main} />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.deleteButton}
+                      onPress={() => deletePet(pet)}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={theme.colors.error.main} />
+                    </TouchableOpacity>
+                  </View>
+                </Card>
+              );
+            })
           ) : (
             <View style={styles.emptyContainer}>
               <Ionicons name="paw" size={60} color={theme.colors.primary.light} />

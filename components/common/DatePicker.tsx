@@ -13,6 +13,8 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
+import { format } from 'date-fns';
 
 export interface DatePickerProps {
   /**
@@ -201,6 +203,21 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         </View>
       </Modal>
     );
+  };
+  
+  const [isDatePickerVisible, setDatePickerVisible] = React.useState(false);
+
+  const showDatePicker = () => {
+    setDatePickerVisible(true);
+  };
+
+  const closeModalDatePicker = () => {
+    setDatePickerVisible(false);
+  };
+
+  const handleConfirm = (selectedDate: Date) => {
+    closeModalDatePicker();
+    onChange(selectedDate);
   };
   
   return (

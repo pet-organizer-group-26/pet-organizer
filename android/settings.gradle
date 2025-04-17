@@ -1,13 +1,18 @@
 pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
     includeBuild(new File(["node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().toString())
 }
-plugins { id("com.facebook.react.settings") }
 
-extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+// Expo auto-linking setup
+def expoModulesAutoLinking() {
   if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {
-    ex.autolinkLibrariesFromCommand()
+    return ["node", "--print", "require('react-native/cli').autolinkAndroid()"]
   } else {
-    def command = [
+    return [
       'node',
       '--no-warnings',
       '--eval',
@@ -16,14 +21,18 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
       '--json',
       '--platform',
       'android'
-    ].toList()
-    ex.autolinkLibrariesFromCommand(command)
+    ]
   }
 }
 
 rootProject.name = 'petorganizer'
 
 dependencyResolutionManagement {
+  repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+  repositories {
+    google()
+    mavenCentral()
+  }
   versionCatalogs {
     reactAndroidLibs {
       from(files(new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim(), "../gradle/libs.versions.toml")))

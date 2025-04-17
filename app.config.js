@@ -12,7 +12,6 @@ export default {
       ios: {
         supportsTablet: true,
         bundleIdentifier: "com.group26.petorganizer",
-        googleServicesFile: "./ios/GoogleService-Info.plist", // ✅ Add Firebase for iOS
       },
   
       android: {
@@ -21,7 +20,6 @@ export default {
           backgroundColor: "#ffffff",
         },
         package: "com.group26.petorganizer",
-        googleServicesFile: "./android/app/google-services.json", // ✅ Add Firebase for Android
       },
   
       web: {

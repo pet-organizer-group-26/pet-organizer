@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Alert,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +15,8 @@ import { Card } from '../components/common/Card';
 import { InputField } from '../components/common/InputField';
 import { Button } from '../components/common/Button';
 import theme from '../constants/theme';
+import { supabase } from '../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 type Item = {
   id: string;
@@ -21,6 +24,8 @@ type Item = {
   quantity: string;
   category: string;
   completed: boolean;
+  user_id?: string;
+  created_at?: string;
 };
 
 const categories = ['Food', 'Supplies', 'Medicine', 'Toys', 'Other'];
@@ -29,53 +34,194 @@ export default function ShoppingList() {
   const [items, setItems] = useState<Item[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const [formData, setFormData] = useState<Omit<Item, 'id' | 'completed'>>({
+  const [formData, setFormData] = useState<Omit<Item, 'id' | 'completed' | 'user_id' | 'created_at'>>({
     name: '',
     quantity: '',
     category: 'Food'
   });
   const [nameError, setNameError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddItem = () => {
+  // Fetch items from Supabase
+  const fetchItems = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('shopping_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching shopping items:', error);
+        Alert.alert('Error', 'Failed to load shopping list');
+      } else {
+        setItems(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchItems:', error);
+      Alert.alert('Error', 'An unexpected error occurred while loading shopping list');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Set up real-time subscription and initial fetch
+  useEffect(() => {
+    let subscription: ReturnType<typeof supabase.channel> | undefined;
+    
+    const setupSubscription = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('No authenticated user found');
+          return;
+        }
+
+        // Initial fetch
+        await fetchItems();
+        
+        // Set up real-time subscription
+        subscription = supabase
+          .channel('shopping-items-channel-' + new Date().getTime())
+          .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'shopping_items',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            if (payload.new) {
+              setItems(current => [payload.new as Item, ...current]);
+            }
+          })
+          .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'shopping_items',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            if (payload.new) {
+              setItems(current => 
+                current.map(item => 
+                  item.id === (payload.new as Item).id ? (payload.new as Item) : item
+                )
+              );
+            }
+          })
+          .on('postgres_changes', { 
+            event: 'DELETE', 
+            schema: 'public', 
+            table: 'shopping_items',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            if (payload.old) {
+              setItems(current => 
+                current.filter(item => item.id !== (payload.old as Item).id)
+              );
+            }
+          })
+          .subscribe();
+      } catch (error) {
+        console.error('Error setting up subscription:', error);
+      }
+    };
+
+    setupSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, [fetchItems]);
+
+  // Refresh data when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchItems();
+      return () => {};
+    }, [fetchItems])
+  );
+
+  const handleAddItem = async () => {
     if (!formData.name.trim()) {
       setNameError('Item name is required');
       return;
     }
 
-    if (editingItem) {
-      setItems(items.map(item =>
-        item.id === editingItem.id
-          ? { ...item, ...formData }
-          : item
-      ));
-      
-      Alert.alert(
-        'Success',
-        'Item updated successfully',
-        [{ text: 'OK' }]
-      );
-    } else {
-      setItems([...items, { 
-        ...formData, 
-        id: Date.now().toString(),
-        completed: false 
-      }]);
-      
-      Alert.alert(
-        'Success',
-        'Item added successfully',
-        [{ text: 'OK' }]
-      );
-    }
+    setIsSubmitting(true);
 
-    setModalVisible(false);
-    setEditingItem(null);
-    setFormData({
-      name: '',
-      quantity: '',
-      category: 'Food'
-    });
-    setNameError('');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'You must be logged in to add items');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (editingItem) {
+        // Update existing item
+        const { error } = await supabase
+          .from('shopping_items')
+          .update({
+            name: formData.name,
+            quantity: formData.quantity,
+            category: formData.category
+          })
+          .eq('id', editingItem.id);
+
+        if (error) throw error;
+        
+        Alert.alert(
+          'Success',
+          'Item updated successfully',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Add new item
+        const { error } = await supabase
+          .from('shopping_items')
+          .insert({
+            name: formData.name,
+            quantity: formData.quantity,
+            category: formData.category,
+            completed: false,
+            user_id: user.id
+          });
+
+        if (error) throw error;
+        
+        Alert.alert(
+          'Success',
+          'Item added successfully',
+          [{ text: 'OK' }]
+        );
+      }
+
+      setModalVisible(false);
+      setEditingItem(null);
+      setFormData({
+        name: '',
+        quantity: '',
+        category: 'Food'
+      });
+      setNameError('');
+    } catch (error: any) {
+      console.error('Error saving item:', error);
+      Alert.alert('Error', error.message || 'Failed to save item');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEdit = (item: Item) => {
@@ -98,24 +244,42 @@ export default function ShoppingList() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            setItems(items.filter(item => item.id !== id));
-            
-            Alert.alert(
-              'Success',
-              'Item deleted successfully',
-              [{ text: 'OK' }]
-            );
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('shopping_items')
+                .delete()
+                .eq('id', id);
+              
+              if (error) throw error;
+              
+              Alert.alert(
+                'Success',
+                'Item deleted successfully',
+                [{ text: 'OK' }]
+              );
+            } catch (error: any) {
+              console.error('Error deleting item:', error);
+              Alert.alert('Error', error.message || 'Failed to delete item');
+            }
           }
         }
       ]
     );
   };
 
-  const toggleComplete = (id: string) => {
-    setItems(items.map(item =>
-      item.id === id ? { ...item, completed: !item.completed } : item
-    ));
+  const toggleComplete = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('shopping_items')
+        .update({ completed: !currentStatus })
+        .eq('id', id);
+      
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error toggling item completion:', error);
+      Alert.alert('Error', error.message || 'Failed to update item status');
+    }
   };
 
   const getCategoryIcon = (category: string) => {
@@ -132,7 +296,7 @@ export default function ShoppingList() {
     <Card variant="layered" style={styles.itemContainer}>
       <TouchableOpacity 
         style={styles.checkbox}
-        onPress={() => toggleComplete(item.id)}
+        onPress={() => toggleComplete(item.id, item.completed)}
       >
         <Ionicons 
           name={item.completed ? "checkmark-circle" : "ellipse-outline"} 
@@ -220,40 +384,45 @@ export default function ShoppingList() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <Text style={styles.header}>Shopping List</Text>
-      
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Ionicons name="cart-outline" size={60} color={theme.colors.primary.light} />
-            <Text style={styles.emptyText}>Your shopping list is empty</Text>
-            <Text style={styles.emptySubtext}>
-              Tap the + button to add items to your shopping list
-            </Text>
-          </View>
-        )}
-      />
-      
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => {
-          setEditingItem(null);
-          setFormData({
-            name: '',
-            quantity: '',
-            category: 'Food'
-          });
-          setNameError('');
-          setModalVisible(true);
-        }}
-      >
-        <Ionicons name="add" size={30} color="white" />
-      </TouchableOpacity>
-      
+      <View style={styles.header}>
+        <Text style={styles.title}>Shopping List</Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            setEditingItem(null);
+            setFormData({
+              name: '',
+              quantity: '',
+              category: 'Food'
+            });
+            setNameError('');
+            setModalVisible(true);
+          }}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <Text style={styles.loadingText}>Loading items...</Text>
+        </View>
+      ) : items.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="basket-outline" size={80} color={theme.colors.text.secondary} />
+          <Text style={styles.emptyText}>Your shopping list is empty</Text>
+          <Text style={styles.emptySubText}>Add items to get started</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+
       <ModalSystem
         visible={modalVisible}
         onClose={() => {
@@ -266,17 +435,15 @@ export default function ShoppingList() {
           });
           setNameError('');
         }}
-        type="form"
-        size="small"
-        title={editingItem ? 'Edit Item' : 'Add Item'}
+        title={editingItem ? "Edit Item" : "Add Item"}
         actions={[
           {
-            label: editingItem ? 'Save' : 'Add',
+            label: isSubmitting ? "Saving..." : "Save",
             onPress: handleAddItem,
-            variant: 'primary'
+            variant: "primary"
           },
           {
-            label: 'Cancel',
+            label: "Cancel",
             onPress: () => {
               setModalVisible(false);
               setEditingItem(null);
@@ -287,8 +454,8 @@ export default function ShoppingList() {
               });
               setNameError('');
             },
-            variant: 'secondary'
-          }
+            variant: "secondary"
+          },
         ]}
       >
         {renderModalContent()}
@@ -304,11 +471,53 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background.default,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
+  },
+  title: {
     fontSize: theme.typography.fontSize.xl,
     fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.primary.main,
-    marginBottom: theme.spacing.md,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primary.main,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.primary.main,
+    marginTop: theme.spacing.sm,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  emptyText: {
+    fontSize: theme.typography.fontSize.lg,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.md,
+  },
+  emptySubText: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
     textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   listContent: {
     paddingBottom: 80,
@@ -361,25 +570,6 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: theme.colors.text.disabled,
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.xl,
-    marginTop: theme.spacing.xl * 2,
-  },
-  emptyText: {
-    fontSize: theme.typography.fontSize.lg,
-    fontFamily: theme.typography.fontFamily.medium,
-    color: theme.colors.text.primary,
-    marginTop: theme.spacing.md,
-  },
-  emptySubtext: {
-    fontSize: theme.typography.fontSize.md,
-    fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
-    marginTop: theme.spacing.xs,
-  },
   inputLabel: {
     fontSize: theme.typography.fontSize.sm,
     fontFamily: theme.typography.fontFamily.medium,
@@ -415,21 +605,5 @@ const styles = StyleSheet.create({
   selectedCategoryText: {
     color: 'white',
     fontFamily: theme.typography.fontFamily.medium,
-  },
-  addButton: {
-    position: 'absolute',
-    right: theme.spacing.lg,
-    bottom: theme.spacing.lg,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.colors.primary.main,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
 });

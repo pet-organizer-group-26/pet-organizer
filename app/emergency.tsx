@@ -1,11 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Linking } from 'react-native';
-import { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, Linking, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import ModalSystem from './components/ModalSystem';
 import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
 import { InputField } from '../components/common/InputField';
 import theme from '../constants/theme';
+import { supabase } from '../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 type Contact = {
   id: string;
@@ -13,16 +15,17 @@ type Contact = {
   phone: string;
   type: string; // e.g., 'Vet', 'Pet Sitter', 'Emergency Contact'
   notes?: string;
+  user_id?: string;
+  created_at?: string;
 };
 
 const contactTypes = ['Vet', 'Pet Sitter', 'Emergency Contact', 'Family', 'Friend', 'Other'];
 
 export default function EmergencyContacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-
   const [modalVisible, setModalVisible] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [formData, setFormData] = useState<Omit<Contact, 'id'>>({
+  const [formData, setFormData] = useState<Omit<Contact, 'id' | 'user_id' | 'created_at'>>({
     name: '',
     phone: '',
     type: 'Vet',
@@ -32,8 +35,120 @@ export default function EmergencyContacts() {
     name: '',
     phone: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddContact = () => {
+  // Fetch contacts from Supabase
+  const fetchContacts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No authenticated user found');
+        setIsLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching contacts:', error);
+        Alert.alert('Error', 'Failed to load emergency contacts');
+      } else {
+        setContacts(data || []);
+      }
+    } catch (error) {
+      console.error('Error in fetchContacts:', error);
+      Alert.alert('Error', 'An unexpected error occurred while loading contacts');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Set up real-time subscription and initial fetch
+  useEffect(() => {
+    let subscription: ReturnType<typeof supabase.channel> | undefined;
+    
+    const setupSubscription = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('No authenticated user found');
+          return;
+        }
+
+        // Initial fetch
+        await fetchContacts();
+        
+        // Set up real-time subscription
+        subscription = supabase
+          .channel('emergency-contacts-channel-' + new Date().getTime())
+          .on('postgres_changes', { 
+            event: 'INSERT', 
+            schema: 'public', 
+            table: 'emergency_contacts',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            if (payload.new) {
+              setContacts(current => [payload.new as Contact, ...current]);
+            }
+          })
+          .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'emergency_contacts',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            if (payload.new) {
+              setContacts(current => 
+                current.map(contact => 
+                  contact.id === (payload.new as Contact).id ? (payload.new as Contact) : contact
+                )
+              );
+            }
+          })
+          .on('postgres_changes', { 
+            event: 'DELETE', 
+            schema: 'public', 
+            table: 'emergency_contacts',
+            filter: `user_id=eq.${user.id}`
+          }, payload => {
+            if (payload.old) {
+              setContacts(current => 
+                current.filter(contact => contact.id !== (payload.old as Contact).id)
+              );
+            }
+          })
+          .subscribe();
+      } catch (error) {
+        console.error('Error setting up subscription:', error);
+      }
+    };
+
+    setupSubscription();
+
+    // Cleanup subscription on unmount
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
+    };
+  }, [fetchContacts]);
+
+  // Refresh data when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchContacts();
+      return () => {};
+    }, [fetchContacts])
+  );
+
+  const handleAddContact = async () => {
     // Reset errors
     const newErrors = { name: '', phone: '' };
     let hasError = false;
@@ -53,39 +168,71 @@ export default function EmergencyContacts() {
       return;
     }
 
-    if (editingContact) {
-      setContacts(contacts.map(contact =>
-        contact.id === editingContact.id
-          ? { ...formData, id: contact.id }
-          : contact
-      ));
-      
-      // Add success message for editing
-      Alert.alert(
-        'Success',
-        'Contact updated successfully',
-        [{ text: 'OK' }]
-      );
-    } else {
-      setContacts([...contacts, { ...formData, id: Date.now().toString() }]);
-      
-      // Add success message for adding
-      Alert.alert(
-        'Success',
-        'Contact added successfully',
-        [{ text: 'OK' }]
-      );
-    }
+    setIsSubmitting(true);
 
-    setModalVisible(false);
-    setEditingContact(null);
-    setFormData({
-      name: '',
-      phone: '',
-      type: 'Vet',
-      notes: ''
-    });
-    setErrors({ name: '', phone: '' });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'You must be logged in to add contacts');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (editingContact) {
+        // Update existing contact
+        const { error } = await supabase
+          .from('emergency_contacts')
+          .update({
+            name: formData.name,
+            phone: formData.phone,
+            type: formData.type,
+            notes: formData.notes
+          })
+          .eq('id', editingContact.id);
+
+        if (error) throw error;
+        
+        Alert.alert(
+          'Success',
+          'Contact updated successfully',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Add new contact
+        const { error } = await supabase
+          .from('emergency_contacts')
+          .insert({
+            name: formData.name,
+            phone: formData.phone,
+            type: formData.type,
+            notes: formData.notes,
+            user_id: user.id
+          });
+
+        if (error) throw error;
+        
+        Alert.alert(
+          'Success',
+          'Contact added successfully',
+          [{ text: 'OK' }]
+        );
+      }
+
+      setModalVisible(false);
+      setEditingContact(null);
+      setFormData({
+        name: '',
+        phone: '',
+        type: 'Vet',
+        notes: ''
+      });
+      setErrors({ name: '', phone: '' });
+    } catch (error: any) {
+      console.error('Error saving contact:', error);
+      Alert.alert('Error', error.message || 'Failed to save contact');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEdit = (contact: Contact) => {
@@ -109,15 +256,24 @@ export default function EmergencyContacts() {
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            setContacts(contacts.filter(contact => contact.id !== id));
-            
-            // Add success message for deleting
-            Alert.alert(
-              'Success',
-              'Contact deleted successfully',
-              [{ text: 'OK' }]
-            );
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('emergency_contacts')
+                .delete()
+                .eq('id', id);
+              
+              if (error) throw error;
+              
+              Alert.alert(
+                'Success',
+                'Contact deleted successfully',
+                [{ text: 'OK' }]
+              );
+            } catch (error: any) {
+              console.error('Error deleting contact:', error);
+              Alert.alert('Error', error.message || 'Failed to delete contact');
+            }
           }
         }
       ]
@@ -140,26 +296,26 @@ export default function EmergencyContacts() {
   };
 
   const renderContact = ({ item }: { item: Contact }) => (
-    <Card variant="layered" style={styles.contactItem}>
+    <Card variant="layered" style={styles.contactItem as ViewStyle}>
       <TouchableOpacity 
-        style={styles.contactContent}
+        style={styles.contactContent as ViewStyle}
         onPress={() => handleEdit(item)}
         onLongPress={() => handleDelete(item.id)}
       >
-        <View style={styles.contactHeader}>
-          <Text style={styles.contactName}>{item.name}</Text>
-          <View style={[styles.typeTag, { backgroundColor: `${getTypeColor(item.type)}30` }]}>
-            <Text style={[styles.contactType, { color: theme.colors.text.primary }]}>{item.type}</Text>
+        <View style={styles.contactHeader as ViewStyle}>
+          <Text style={styles.contactName as TextStyle}>{item.name}</Text>
+          <View style={[styles.typeTag as ViewStyle, { backgroundColor: `${getTypeColor(item.type)}30` }]}>
+            <Text style={[styles.contactType as TextStyle, { color: theme.colors.text.primary }]}>{item.type}</Text>
           </View>
         </View>
-        <View style={styles.contactRow}>
-          <Ionicons name="call-outline" size={16} color={theme.colors.text.secondary} style={styles.contactIcon} />
-          <Text style={styles.contactPhone}>{item.phone}</Text>
+        <View style={styles.contactRow as ViewStyle}>
+          <Ionicons name="call-outline" size={16} color={theme.colors.text.secondary} style={styles.contactIcon as TextStyle} />
+          <Text style={styles.contactPhone as TextStyle}>{item.phone}</Text>
         </View>
         {item.notes && (
-          <View style={styles.contactRow}>
-            <Ionicons name="information-circle-outline" size={16} color={theme.colors.text.secondary} style={styles.contactIcon} />
-            <Text style={styles.contactNotes}>{item.notes}</Text>
+          <View style={styles.contactRow as ViewStyle}>
+            <Ionicons name="information-circle-outline" size={16} color={theme.colors.text.secondary} style={styles.contactIcon as TextStyle} />
+            <Text style={styles.contactNotes as TextStyle}>{item.notes}</Text>
           </View>
         )}
       </TouchableOpacity>
@@ -170,7 +326,7 @@ export default function EmergencyContacts() {
         variant="primary"
         size="small"
         leftIcon={<Ionicons name="call-outline" size={16} color="white" />}
-        style={styles.callButton}
+        style={styles.callButton as ViewStyle}
       />
     </Card>
   );
@@ -202,22 +358,23 @@ export default function EmergencyContacts() {
         leftIcon={<Ionicons name="call-outline" size={20} color={theme.colors.primary.main} />}
       />
 
-      <Text style={styles.inputLabel}>Contact Type</Text>
-      <View style={styles.typeContainer}>
+      <Text style={styles.inputLabel as TextStyle}>Contact Type</Text>
+      <View style={styles.typeContainer as ViewStyle}>
         {contactTypes.map((type) => (
           <TouchableOpacity
             key={type}
             style={[
-              styles.typeButton,
-              formData.type === type && styles.selectedType,
-              formData.type === type && { backgroundColor: theme.colors.primary.main },
+              styles.typeButton as ViewStyle,
+              formData.type === type && (styles.selectedType as ViewStyle),
             ]}
             onPress={() => setFormData({ ...formData, type })}
           >
-            <Text style={[
-              styles.typeButtonText,
-              formData.type === type && styles.selectedTypeText,
-            ]}>
+            <Text
+              style={[
+                styles.typeButtonText as TextStyle,
+                formData.type === type && (styles.selectedTypeText as TextStyle),
+              ]}
+            >
               {type}
             </Text>
           </TouchableOpacity>
@@ -225,54 +382,58 @@ export default function EmergencyContacts() {
       </View>
 
       <InputField
-        label="Notes (optional)"
-        placeholder="Additional information"
+        label="Notes (Optional)"
+        placeholder="Add any additional information"
         value={formData.notes}
         onChangeText={(text) => setFormData({ ...formData, notes: text })}
         multiline
         numberOfLines={3}
-        inputStyle={styles.notesInput}
         leftIcon={<Ionicons name="create-outline" size={20} color={theme.colors.primary.main} />}
       />
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Emergency Contacts</Text>
-      
-      <FlatList
-        data={contacts}
-        renderItem={renderContact}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={60} color={theme.colors.primary.light} />
-            <Text style={styles.emptyText}>No emergency contacts yet</Text>
-            <Text style={styles.emptySubtext}>
-              Tap the + button to add your first contact
-            </Text>
-          </View>
-        )}
-      />
+    <View style={styles.container as ViewStyle}>
+      <View style={styles.header as ViewStyle}>
+        <Text style={styles.title as TextStyle}>Emergency Contacts</Text>
+        <TouchableOpacity
+          style={styles.addButton as ViewStyle}
+          onPress={() => {
+            setEditingContact(null);
+            setFormData({
+              name: '',
+              phone: '',
+              type: 'Vet',
+              notes: ''
+            });
+            setErrors({ name: '', phone: '' });
+            setModalVisible(true);
+          }}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
 
-      <TouchableOpacity 
-        style={styles.addButton}
-        onPress={() => {
-          setEditingContact(null);
-          setFormData({
-            name: '',
-            phone: '',
-            type: 'Vet',
-            notes: ''
-          });
-          setErrors({ name: '', phone: '' });
-          setModalVisible(true);
-        }}
-      >
-        <Ionicons name="add" size={30} color="white" />
-      </TouchableOpacity>
+      {isLoading ? (
+        <View style={styles.loadingContainer as ViewStyle}>
+          <ActivityIndicator size="large" color={theme.colors.primary.main} />
+          <Text style={styles.loadingText as TextStyle}>Loading contacts...</Text>
+        </View>
+      ) : contacts.length === 0 ? (
+        <View style={styles.emptyContainer as ViewStyle}>
+          <Ionicons name="call-outline" size={80} color={theme.colors.text.secondary} />
+          <Text style={styles.emptyText as TextStyle}>No emergency contacts</Text>
+          <Text style={styles.emptySubText as TextStyle}>Add contacts for quick access during emergencies</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={contacts}
+          renderItem={renderContact}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent as ViewStyle}
+        />
+      )}
 
       <ModalSystem
         visible={modalVisible}
@@ -287,17 +448,15 @@ export default function EmergencyContacts() {
           });
           setErrors({ name: '', phone: '' });
         }}
-        type="form"
-        size="medium"
-        title={editingContact ? 'Edit Contact' : 'Add Contact'}
+        title={editingContact ? "Edit Contact" : "Add Contact"}
         actions={[
           {
-            label: editingContact ? 'Save' : 'Add',
+            label: isSubmitting ? "Saving..." : "Save",
             onPress: handleAddContact,
-            variant: 'primary'
+            variant: "primary"
           },
           {
-            label: 'Cancel',
+            label: "Cancel",
             onPress: () => {
               setModalVisible(false);
               setEditingContact(null);
@@ -309,8 +468,8 @@ export default function EmergencyContacts() {
               });
               setErrors({ name: '', phone: '' });
             },
-            variant: 'secondary'
-          }
+            variant: "secondary"
+          },
         ]}
       >
         {renderModalContent()}
@@ -319,45 +478,118 @@ export default function EmergencyContacts() {
   );
 }
 
-const styles = StyleSheet.create({
+// Define style types to fix type errors
+type Styles = {
+  container: ViewStyle;
+  header: ViewStyle;
+  title: TextStyle;
+  loadingContainer: ViewStyle;
+  loadingText: TextStyle;
+  emptyContainer: ViewStyle;
+  emptyText: TextStyle;
+  emptySubText: TextStyle;
+  listContent: ViewStyle;
+  addButton: ViewStyle;
+  contactItem: ViewStyle;
+  contactContent: ViewStyle;
+  contactHeader: ViewStyle;
+  contactName: TextStyle;
+  typeTag: ViewStyle;
+  contactType: TextStyle;
+  contactRow: ViewStyle;
+  contactIcon: TextStyle;
+  contactPhone: TextStyle;
+  contactNotes: TextStyle;
+  callButton: ViewStyle;
+  inputLabel: TextStyle;
+  typeContainer: ViewStyle;
+  typeButton: ViewStyle;
+  selectedType: ViewStyle;
+  typeButtonText: TextStyle;
+  selectedTypeText: TextStyle;
+};
+
+const styles = StyleSheet.create<Styles>({
   container: {
     flex: 1,
+    padding: theme.spacing.md,
     backgroundColor: theme.colors.background.default,
-    padding: theme.spacing.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: theme.typography.fontSize.xl,
     fontFamily: theme.typography.fontFamily.bold,
+    color: theme.colors.primary.main,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.primary.main,
+    marginTop: theme.spacing.sm,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.xl,
+  },
+  emptyText: {
+    fontSize: theme.typography.fontSize.lg,
+    fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  emptySubText: {
+    fontSize: theme.typography.fontSize.md,
+    fontFamily: theme.typography.fontFamily.regular,
+    color: theme.colors.text.secondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   listContent: {
-    paddingBottom: 80,
-    gap: theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primary.main,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   contactItem: {
+    marginBottom: theme.spacing.md,
     padding: theme.spacing.md,
-    marginBottom: 0,
   },
   contactContent: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   contactHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
   },
   contactName: {
     fontSize: theme.typography.fontSize.lg,
-    fontFamily: theme.typography.fontFamily.medium,
+    fontFamily: theme.typography.fontFamily.bold,
     color: theme.colors.text.primary,
-    flex: 1,
   },
   typeTag: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 4,
     borderRadius: theme.borderRadius.sm,
+    alignSelf: 'flex-start',
   },
   contactType: {
     fontSize: theme.typography.fontSize.xs,
@@ -366,15 +598,15 @@ const styles = StyleSheet.create({
   contactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: theme.spacing.xs,
+    marginTop: 6,
   },
   contactIcon: {
-    marginRight: theme.spacing.xs,
+    marginRight: 8,
   },
   contactPhone: {
     fontSize: theme.typography.fontSize.md,
     fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.text.secondary,
+    color: theme.colors.text.primary,
   },
   contactNotes: {
     fontSize: theme.typography.fontSize.sm,
@@ -383,53 +615,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   callButton: {
-    alignSelf: 'flex-start',
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: theme.spacing.lg,
-    right: theme.spacing.lg,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.colors.primary.main,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: theme.spacing.xl,
-    marginTop: theme.spacing.xl * 2,
-  },
-  emptyText: {
-    fontSize: theme.typography.fontSize.lg,
-    fontFamily: theme.typography.fontFamily.medium,
-    color: theme.colors.text.primary,
-    marginTop: theme.spacing.md,
-  },
-  emptySubtext: {
-    fontSize: theme.typography.fontSize.md,
-    fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.text.secondary,
-    textAlign: 'center',
     marginTop: theme.spacing.xs,
   },
   inputLabel: {
     fontSize: theme.typography.fontSize.sm,
     fontFamily: theme.typography.fontFamily.medium,
     color: theme.colors.text.primary,
-    marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.xs,
-  },
-  notesInput: {
-    height: 80,
-    textAlignVertical: 'top',
+    marginTop: theme.spacing.md,
   },
   typeContainer: {
     flexDirection: 'row',
@@ -437,25 +630,25 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   typeButton: {
-    paddingVertical: theme.spacing.xs,
     paddingHorizontal: theme.spacing.sm,
-    borderRadius: 20,
-    backgroundColor: theme.colors.background.paper,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.md,
+    marginRight: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+    backgroundColor: theme.colors.background.default,
     borderWidth: 1,
     borderColor: theme.colors.divider,
-    marginBottom: theme.spacing.sm,
-    marginRight: theme.spacing.sm,
   },
   selectedType: {
+    backgroundColor: theme.colors.primary.main,
     borderColor: theme.colors.primary.main,
   },
   typeButtonText: {
     fontSize: theme.typography.fontSize.sm,
-    fontFamily: theme.typography.fontFamily.regular,
-    color: theme.colors.text.secondary,
+    fontFamily: theme.typography.fontFamily.medium,
+    color: theme.colors.text.primary,
   },
   selectedTypeText: {
     color: 'white',
-    fontFamily: theme.typography.fontFamily.medium,
   },
 });

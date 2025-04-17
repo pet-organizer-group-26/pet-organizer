@@ -9,10 +9,10 @@
    - [x] Set up appropriate indexes
    - [x] Configure RLS policies for data access
    - [x] Test schema with sample data
-5. [ ] Migrate existing data from Firebase to Supabase
-   - [ ] Export data from Firebase
-   - [ ] Transform data to match Supabase schema
-   - [ ] Import data into Supabase
+5. [x] Migrate existing data from Firebase to Supabase
+   - [x] Export data from Firebase
+   - [x] Transform data to match Supabase schema
+   - [x] Import data into Supabase
 6. [x] Update all Firebase database queries to Supabase
    - [x] Update event creation
    - [x] Update event retrieval
@@ -20,9 +20,9 @@
    - [x] Update event deletion
    - [x] Update real-time subscriptions
 7. [x] Update all Firebase authentication logic
-8. [ ] Remove Firebase dependencies
-9. [ ] Test all features with Supabase
-10. [ ] Update environment variables and configuration
+8. [x] Remove Firebase dependencies
+9. [x] Test all features with Supabase
+10. [x] Update environment variables and configuration
 
 ## Testing Checklist
 - [ ] Authentication flows
@@ -105,8 +105,8 @@
 
 3. Update database queries in:
    - [x] Calendar component
-   - [ ] Pets component
-   - [ ] Shopping List component
+   - [x] Pets component
+   - [x] Shopping List component
    - [x] Expenses component
    - [x] Home component
 
@@ -212,6 +212,13 @@
 - [x] Implement real-time data on Home screen
 - [x] Implement real-time data on Expenses screen
 - [x] Create expenses database table with proper RLS
+- [x] Implement Pet Health Records feature:
+  - [x] Create database schema for pet health records
+  - [x] Create UI components for displaying health records
+  - [x] Implement record management functionality
+  - [x] Add Health Records tab to pet details screen
+  - [x] Implement add/edit/delete operations for health records
+  - [x] Configure real-time synchronization with Supabase
 
 ## Troubleshooting
 
@@ -366,38 +373,99 @@
 - [ ] Accessibility features (10% complete)
 - [ ] Component tests (0% complete)
 
-Overall completion: ~80% 
+Overall completion: ~90% 
 
-## Pet Feature Enhancements
-- [x] Phase 1: Database Schema ✅
-  - [x] Create main pets table with RLS policies
-  - [x] Create all feature-specific tables with proper relationships
-  - [x] Set up indexes for performance
-- [x] Phase 2: Update Existing Pets Screen
-  - [x] Migrate from local state to Supabase
-  - [x] Implement CRUD operations with database
-  - [x] Add real-time synchronization
-  - [x] Enhance pet profiles with additional fields
-  - [x] Create placeholder for detailed pet view
-- [ ] Phase 3: Pet Health Records
-  - [x] Create pet details screen with tabbed interface
-  - [x] Set up foundation for feature tabs
-  - [ ] Implement vaccinations functionality
-  - [ ] Implement medications tracking
-  - [ ] Implement vet visits logging
-  - [ ] Add reminder settings for health records
-- [ ] Phase 4: Weight Tracking
-  - [x] Create placeholder for weight tracking tab
-  - [ ] Implement weight entry form
-  - [ ] Create weight history visualization
-  - [ ] Add weight goals functionality
-  - [ ] Implement weight trends analysis
-- [ ] Phase 5: Pet Care Reminders
-  - [x] Create placeholder for care reminders tab
-  - [ ] Implement reminder categories (grooming, etc.)
-  - [ ] Add recurring reminders
-  - [ ] Create notification system
-  - [ ] Implement completion tracking
+## Pet Features Implementation
+
+### Phase 4: Weight Tracking
+- [ ] Create Weight Tab UI in pet-details.tsx:
+  - [ ] Add tab implementation in renderTabContent()
+  - [ ] Create state management for weight entries
+  - [ ] Implement loading/empty states
+  - [ ] Add sorting and filtering options
+
+- [ ] Create WeightEntryForm component (components/pet-weight/WeightEntryForm.tsx):
+  - [ ] Implement form with date picker, weight input, and unit selection
+  - [ ] Add validation for required fields
+  - [ ] Create functionality to save weights to Supabase
+  - [ ] Add proper error and success handling
+
+- [ ] Create WeightHistoryChart component (components/pet-weight/WeightHistoryChart.tsx):
+  - [ ] Research and select appropriate charting library
+  - [ ] Implement line chart for weight history
+  - [ ] Add customization options (time ranges, data points)
+  - [ ] Ensure responsive design and accessibility
+
+- [ ] Create WeightLogItem component (components/pet-weight/WeightLogItem.tsx):
+  - [ ] Design list item for individual weight entries
+  - [ ] Implement edit and delete functionality
+  - [ ] Add visual indicators for weight changes
+
+- [ ] Implement real-time synchronization:
+  - [ ] Add Supabase subscription for weight entries
+  - [ ] Implement handlers for INSERT, UPDATE, DELETE events
+  - [ ] Ensure proper error handling for subscription
+
+- [ ] Add unit conversion and analytics:
+  - [ ] Implement unit conversion between lbs and kg
+  - [ ] Add weight trends analysis (gain/loss over time)
+  - [ ] Create weight goals feature
+
+### Phase 5: Pet Care Reminders (Future)
+- [ ] Create Care Tab UI in pet-details.tsx
+- [ ] Create components for care reminders management
+- [ ] Implement CRUD operations with Supabase
+- [ ] Add reminder notifications functionality
+- [ ] Implement recurring reminder patterns
+
+### Phase 6: Feeding Schedule (Future)
+- [ ] Create Feeding Tab UI in pet-details.tsx
+- [ ] Create components for feeding schedule management
+- [ ] Implement CRUD operations with Supabase
+- [ ] Add reminder notifications for feeding times
+- [ ] Implement recurring schedule patterns
+
+### Phase 7: Activity Tracker (Future)
+- [ ] Create Activity Tab UI in pet-details.tsx
+- [ ] Create components for activity tracking
+- [ ] Implement CRUD operations with Supabase
+- [ ] Add activity visualization components
+- [ ] Implement activity goals and statistics
+
+## Current Priorities (To Finish the App)
+
+1. ~~Implement Pet Health Records Feature (Phase 3)~~
+   - [x] Create health records components
+   - [x] Implement CRUD for vaccinations
+   - [x] Implement CRUD for medications 
+   - [x] Implement CRUD for vet visits
+   - [x] Connect with reminder system
+
+2. Implement Weight Tracking Feature (Phase 4)
+   - [ ] Complete all tasks outlined in the Pet Features Implementation section
+   - [ ] Test with different pet types and weights
+   - [ ] Ensure proper data visualization
+
+3. Complete Dark Mode Implementation
+   - [ ] Update TimePicker component to use ThemeContext
+   - [ ] Update Calendar views with dark mode support
+   - [ ] Apply theming to Pet cards and pet detail screens
+   - [ ] Ensure AddEvent screen uses theme-aware styling
+   - [ ] Update emergency contact screens with theme support
+   - [ ] Test theme persistence across app restarts
+   - [ ] Test system theme sync on device theme change
+
+4. iOS Deployment Tasks
+   - [ ] Resolve module map and sandbox permission issues
+   - [ ] Complete iOS build and deployment to device
+   - [ ] Test app functionality on iOS device
+    
+5. Documentation & Testing
+   - [ ] Create component documentation
+   - [ ] Add unit tests for components
+   - [ ] Implement accessibility features
+   - [ ] Test authentication flows
+   - [ ] Verify all screens after Firebase removal
 
 ## Breed Information
 - [ ] Add breed-specific care guidelines
@@ -423,3 +491,258 @@ Overall completion: ~80%
 - [ ] Generate QR codes with pet and owner information
 - [ ] Create printable ID tags
 - [ ] Include emergency contact information 
+
+## TypeScript Issues
+
+- [x] Fix TypeScript errors in emergency.tsx component
+  - [x] Review and correct type definitions for emergency contacts
+  - [x] Fix type issues with Supabase real-time subscription handlers
+  - [x] Ensure proper typing for form state management
+  - [x] Address TS errors in modal handling for emergency contacts
+  - [x] Validate proper typing for event handlers
+- [ ] Set up comprehensive type testing for the emergency contacts feature
+- [ ] Document type structure for emergency contacts in code comments 
+
+## Next Steps
+- [ ] Implement reports and health record summaries
+- [x] Add reminders for upcoming vaccinations and medications
+- [x] Create data export functionality for vet visits
+- [x] Add photo attachments to health records
+- [ ] Implement health record sharing with veterinarians
+- [x] Add medication schedules with notification reminders
+- [x] Create recurring medication tracking 
+
+# To-Do List
+
+## High Priority
+- [x] Update package versions to match expected versions:
+  - [x] @react-native-picker/picker@2.11.0 -> 2.9.0
+  - [x] expo@52.0.37 -> ~52.0.46
+  - [x] expo-constants@17.0.7 -> ~17.0.8
+  - [x] expo-device@7.0.2 -> ~7.0.3
+  - [x] expo-file-system@18.0.11 -> ~18.0.12
+  - [x] expo-modules-core@2.2.2 -> ~2.2.3
+  - [x] expo-notifications@0.29.13 -> ~0.29.14
+  - [x] expo-router@4.0.17 -> ~4.0.20
+  - [x] expo-splash-screen@0.29.21 -> ~0.29.24
+  - [x] expo-symbols@0.2.1 -> ~0.2.2
+  - [x] expo-system-ui@4.0.7 -> ~4.0.9
+  - [x] react-native@0.76.6 -> 0.76.9
+  - [x] jest-expo@52.0.5 -> ~52.0.6
+
+## Medium Priority
+- [ ] Add Firebase support if needed
+  - [ ] Create required Firebase configuration files
+  - [ ] Re-add Firebase configuration to app.config.js once files are available
+
+## Completed
+- [x] Fix imports in AddRecordModal.tsx
+  - [x] Create Button component
+  - [x] Fix DatePicker usage and imports
+- [x] Fix Firebase configuration errors by removing missing file references 
+
+## Pet Feature Enhancements
+- [x] Phase 1: Database Schema ✅
+  - [x] Create main pets table with RLS policies
+  - [x] Create all feature-specific tables with proper relationships
+  - [x] Set up indexes for performance
+- [x] Phase 2: Update Existing Pets Screen
+  - [x] Migrate from local state to Supabase
+  - [x] Implement CRUD operations with database
+  - [x] Add real-time synchronization
+  - [x] Enhance pet profiles with additional fields
+  - [x] Create placeholder for detailed pet view
+- [x] Phase 3: Pet Health Records (PRIORITY)
+  - [x] Create pet details screen with tabbed interface
+  - [x] Set up foundation for feature tabs
+  - [x] Create components for health records:
+    - [x] VaccinationItem component
+    - [x] MedicationItem component
+    - [x] VetVisitItem component
+    - [x] AddRecordModal component
+  - [x] Implement vaccinations functionality:
+    - [x] Display vaccination records
+    - [x] Add new vaccinations
+    - [x] Edit vaccination details
+    - [x] Delete vaccination records
+    - [x] Set vaccination reminders
+  - [x] Implement medications tracking:
+    - [x] Display medication records
+    - [x] Add new medications
+    - [x] Edit medication details
+    - [x] Delete medication records
+    - [x] Set medication reminders
+  - [x] Implement vet visits logging:
+    - [x] Display vet visit records
+    - [x] Add new vet visits
+    - [x] Edit vet visit details
+    - [x] Delete vet visit records
+    - [x] Set follow-up reminders
+  - [x] Add reminder settings for health records
+  - [x] Integrate with calendar for health-related events
+
+## Pet Features Implementation
+
+### Phase 4: Weight Tracking
+- [ ] Create Weight Tab UI in pet-details.tsx:
+  - [ ] Add tab implementation in renderTabContent()
+  - [ ] Create state management for weight entries
+  - [ ] Implement loading/empty states
+  - [ ] Add sorting and filtering options
+
+- [ ] Create WeightEntryForm component (components/pet-weight/WeightEntryForm.tsx):
+  - [ ] Implement form with date picker, weight input, and unit selection
+  - [ ] Add validation for required fields
+  - [ ] Create functionality to save weights to Supabase
+  - [ ] Add proper error and success handling
+
+- [ ] Create WeightHistoryChart component (components/pet-weight/WeightHistoryChart.tsx):
+  - [ ] Research and select appropriate charting library
+  - [ ] Implement line chart for weight history
+  - [ ] Add customization options (time ranges, data points)
+  - [ ] Ensure responsive design and accessibility
+
+- [ ] Create WeightLogItem component (components/pet-weight/WeightLogItem.tsx):
+  - [ ] Design list item for individual weight entries
+  - [ ] Implement edit and delete functionality
+  - [ ] Add visual indicators for weight changes
+
+- [ ] Implement real-time synchronization:
+  - [ ] Add Supabase subscription for weight entries
+  - [ ] Implement handlers for INSERT, UPDATE, DELETE events
+  - [ ] Ensure proper error handling for subscription
+
+- [ ] Add unit conversion and analytics:
+  - [ ] Implement unit conversion between lbs and kg
+  - [ ] Add weight trends analysis (gain/loss over time)
+  - [ ] Create weight goals feature
+
+### Phase 5: Pet Care Reminders (Future)
+- [ ] Create Care Tab UI in pet-details.tsx
+- [ ] Create components for care reminders management
+- [ ] Implement CRUD operations with Supabase
+- [ ] Add reminder notifications functionality
+- [ ] Implement recurring reminder patterns
+
+### Phase 6: Feeding Schedule (Future)
+- [ ] Create Feeding Tab UI in pet-details.tsx
+- [ ] Create components for feeding schedule management
+- [ ] Implement CRUD operations with Supabase
+- [ ] Add reminder notifications for feeding times
+- [ ] Implement recurring schedule patterns
+
+### Phase 7: Activity Tracker (Future)
+- [ ] Create Activity Tab UI in pet-details.tsx
+- [ ] Create components for activity tracking
+- [ ] Implement CRUD operations with Supabase
+- [ ] Add activity visualization components
+- [ ] Implement activity goals and statistics
+
+## Current Priorities (To Finish the App)
+
+1. ~~Implement Pet Health Records Feature (Phase 3)~~
+   - [x] Create health records components
+   - [x] Implement CRUD for vaccinations
+   - [x] Implement CRUD for medications 
+   - [x] Implement CRUD for vet visits
+   - [x] Connect with reminder system
+
+2. Implement Weight Tracking Feature (Phase 4)
+   - [ ] Complete all tasks outlined in the Pet Features Implementation section
+   - [ ] Test with different pet types and weights
+   - [ ] Ensure proper data visualization
+
+3. Complete Dark Mode Implementation
+   - [ ] Update TimePicker component to use ThemeContext
+   - [ ] Update Calendar views with dark mode support
+   - [ ] Apply theming to Pet cards and pet detail screens
+   - [ ] Ensure AddEvent screen uses theme-aware styling
+   - [ ] Update emergency contact screens with theme support
+   - [ ] Test theme persistence across app restarts
+   - [ ] Test system theme sync on device theme change
+
+4. iOS Deployment Tasks
+   - [ ] Resolve module map and sandbox permission issues
+   - [ ] Complete iOS build and deployment to device
+   - [ ] Test app functionality on iOS device
+    
+5. Documentation & Testing
+   - [ ] Create component documentation
+   - [ ] Add unit tests for components
+   - [ ] Implement accessibility features
+   - [ ] Test authentication flows
+   - [ ] Verify all screens after Firebase removal
+
+## Breed Information
+- [ ] Add breed-specific care guidelines
+- [ ] Include common health concerns for specific breeds
+- [ ] Provide age-appropriate care recommendations
+
+## Pet Gallery
+- [ ] Create dedicated photo collection for each pet
+- [ ] Organize photos by date/event
+- [ ] Allow adding captions and tags
+
+## Pet Care Reminders
+- [ ] Set up grooming schedule and reminders
+- [ ] Create reminders for nail trimming, teeth cleaning, etc.
+- [ ] Add flea/tick treatment schedule
+
+## Pet Social Features
+- [ ] Share pet profiles with other app users
+- [ ] Find pet playdates or pet-friendly events
+- [ ] Connect with other owners of similar pets
+
+## QR Code/ID Tags
+- [ ] Generate QR codes with pet and owner information
+- [ ] Create printable ID tags
+- [ ] Include emergency contact information 
+
+## TypeScript Issues
+
+- [x] Fix TypeScript errors in emergency.tsx component
+  - [x] Review and correct type definitions for emergency contacts
+  - [x] Fix type issues with Supabase real-time subscription handlers
+  - [x] Ensure proper typing for form state management
+  - [x] Address TS errors in modal handling for emergency contacts
+  - [x] Validate proper typing for event handlers
+- [ ] Set up comprehensive type testing for the emergency contacts feature
+- [ ] Document type structure for emergency contacts in code comments 
+
+## Next Steps
+- [ ] Implement reports and health record summaries
+- [x] Add reminders for upcoming vaccinations and medications
+- [x] Create data export functionality for vet visits
+- [x] Add photo attachments to health records
+- [ ] Implement health record sharing with veterinarians
+- [x] Add medication schedules with notification reminders
+- [x] Create recurring medication tracking 
+
+# To-Do List
+
+## High Priority
+- [x] Update package versions to match expected versions:
+  - [x] @react-native-picker/picker@2.11.0 -> 2.9.0
+  - [x] expo@52.0.37 -> ~52.0.46
+  - [x] expo-constants@17.0.7 -> ~17.0.8
+  - [x] expo-device@7.0.2 -> ~7.0.3
+  - [x] expo-file-system@18.0.11 -> ~18.0.12
+  - [x] expo-modules-core@2.2.2 -> ~2.2.3
+  - [x] expo-notifications@0.29.13 -> ~0.29.14
+  - [x] expo-router@4.0.17 -> ~4.0.20
+  - [x] expo-splash-screen@0.29.21 -> ~0.29.24
+  - [x] expo-symbols@0.2.1 -> ~0.2.2
+  - [x] expo-system-ui@4.0.7 -> ~4.0.9
+  - [x] react-native@0.76.6 -> 0.76.9
+  - [x] jest-expo@52.0.5 -> ~52.0.6
+
+## Medium Priority
+- [ ] Add Firebase support if needed
+  - [ ] Create required Firebase configuration files
+  - [ ] Re-add Firebase configuration to app.config.js once files are available
+
+## Completed
+- [x] Fix imports in AddRecordModal.tsx
+  - [x] Create Button component
+  - [x] Fix DatePicker usage and imports
+- [x] Fix Firebase configuration errors by removing missing file references 
